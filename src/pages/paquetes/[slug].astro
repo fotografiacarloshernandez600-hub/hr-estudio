@@ -46,14 +46,28 @@ const formatoPrecio = (p) => {
 // Convierte la descripción de Sanity en estructura:
 // - Líneas que empiezan con "Nota:" → recuadro de nota
 // - Líneas en MAYÚSCULAS → subtítulo de sección
-// - Las demás → puntos con palomita
-const parsearDescripcion = (texto = "") =>
-  texto.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
-    if (/^nota:/i.test(l)) return { tipo: "nota", texto: l };
+// - Líneas con formato "Algo: detalle" → punto nuevo con palomita
+// - Líneas sueltas (sin ese formato) → se unen al punto anterior
+const parsearDescripcion = (texto = "") => {
+  const lineas = texto.split("\n").map((l) => l.trim()).filter(Boolean);
+  const resultado = [];
+  for (const l of lineas) {
+    if (/^nota:/i.test(l)) { resultado.push({ tipo: "nota", texto: l }); continue; }
     const soloLetras = l.replace(/[^\p{L}\s]/gu, "").trim();
-    if (soloLetras.length > 3 && soloLetras === soloLetras.toUpperCase()) return { tipo: "titulo", texto: l };
-    return { tipo: "item", texto: l };
-  });
+    if (soloLetras.length > 3 && soloLetras === soloLetras.toUpperCase()) {
+      resultado.push({ tipo: "titulo", texto: l.replace(/:\s*$/, "") });
+      continue;
+    }
+    const esNuevoPunto = /^.{1,45}?:/.test(l);
+    const anterior = resultado[resultado.length - 1];
+    if (!esNuevoPunto && anterior && (anterior.tipo === "item" || anterior.tipo === "nota")) {
+      anterior.texto += " " + l;
+    } else {
+      resultado.push({ tipo: "item", texto: l });
+    }
+  }
+  return resultado;
+};
 ---
 
 <html lang="es">
@@ -114,6 +128,11 @@ const parsearDescripcion = (texto = "") =>
         .card-paquete:hover { transform: translateY(-8px); border-color: var(--oro); }
         .card-paquete h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.5rem; margin: 0 0 14px; color: var(--oro-claro); }
         .card-paquete .desc { flex: 1; text-align: left; margin-bottom: 6px; }
+        .desc.colapsado { max-height: 320px; overflow: hidden; position: relative; }
+        .desc.colapsado::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 90px; background: linear-gradient(180deg, transparent, var(--carbon)); }
+        .btn-ver-mas { display: none; background: none; border: none; color: var(--oro); cursor: pointer; font-family: 'Inter', sans-serif; font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; padding: 10px 0 16px; margin: 0 auto; }
+        .btn-ver-mas:hover { color: var(--oro-claro); }
+        .btn-ver-mas.visible { display: block; }
         .desc-item { display: flex; gap: 10px; color: var(--humo); font-size: 0.9rem; line-height: 1.65; font-weight: 300; margin-bottom: 9px; }
         .desc-item .check { color: var(--oro); flex-shrink: 0; font-size: 0.85rem; }
         .desc-titulo { display: block; color: var(--oro-claro); font-size: 0.72rem; letter-spacing: 2.5px; text-transform: uppercase; margin: 22px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--borde); }
@@ -182,6 +201,7 @@ const parsearDescripcion = (texto = "") =>
                             return <span class="desc-item"><span class="check">✓</span>{linea.texto}</span>;
                         })}
                     </div>
+                    <button class="btn-ver-mas" type="button">Ver todo lo que incluye ↓</button>
                     <span class="precio"><small>$</small>{formatoPrecio(p.precio)} <small>MXN</small></span>
                     <a href={waLink(`Hola, quiero información del paquete ${p.nombrePaquete} para ${servicio.nombre}`)} class="btn-reservar" target="_blank" rel="noopener">
                         Reservar ahora
@@ -225,6 +245,21 @@ const parsearDescripcion = (texto = "") =>
         document.getElementById('btn-filtro')?.addEventListener('click', function() {
             const activo = document.getElementById('service-gallery').classList.toggle('art-mode');
             this.textContent = activo ? 'Color original' : 'Blanco y negro';
+        });
+
+        // Colapsar descripciones largas con "Ver más"
+        document.querySelectorAll('.card-paquete').forEach(card => {
+            const desc = card.querySelector('.desc');
+            const btn = card.querySelector('.btn-ver-mas');
+            if (!desc || !btn) return;
+            if (desc.scrollHeight > 360) {
+                desc.classList.add('colapsado');
+                btn.classList.add('visible');
+                btn.addEventListener('click', () => {
+                    const abierto = !desc.classList.toggle('colapsado');
+                    btn.textContent = abierto ? 'Ver menos ↑' : 'Ver todo lo que incluye ↓';
+                });
+            }
         });
 
         function reveal() {
