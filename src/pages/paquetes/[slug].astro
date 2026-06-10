@@ -4,7 +4,7 @@ import { createClient } from "@sanity/client";
 const client = createClient({
   projectId: "6df459fs",
   dataset: "production",
-  useCdn: true,
+  useCdn: false,
   apiVersion: "2024-02-21",
 });
 
@@ -12,7 +12,7 @@ export async function getStaticPaths() {
   const client = createClient({
     projectId: "6df459fs",
     dataset: "production",
-    useCdn: true,
+    useCdn: false,
     apiVersion: "2024-02-21",
   });
   let servicios = [];
@@ -38,7 +38,10 @@ if (!servicio) return Astro.redirect('/404');
 
 const WHATSAPP = "529333251889";
 const waLink = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
-const formatoPrecio = (p) => typeof p === "number" ? p.toLocaleString("es-MX") : p;
+const formatoPrecio = (p) => {
+  if (typeof p === "number") return p.toLocaleString("es-MX");
+  return String(p ?? "").replace(/^\s*\$\s*/, "");
+};
 
 // Convierte la descripción de Sanity en estructura:
 // - Líneas que empiezan con "Nota:" → recuadro de nota
