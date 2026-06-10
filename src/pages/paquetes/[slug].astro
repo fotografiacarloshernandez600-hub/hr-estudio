@@ -36,7 +36,7 @@ const servicio = await client.fetch(`*[_type == "servicio" && slug.current == $s
 
 if (!servicio) return Astro.redirect('/404');
 
-const WHATSAPP = "529333251889";
+const WHATSAPP = "529331641201";
 const waLink = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
 const formatoPrecio = (p) => {
   if (typeof p === "number") return p.toLocaleString("es-MX");
