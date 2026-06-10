@@ -1,0 +1,236 @@
+---
+import { createClient } from "@sanity/client";
+
+const client = createClient({
+  projectId: "6df459fs",
+  dataset: "production",
+  useCdn: true,
+  apiVersion: "2024-02-21",
+});
+
+export async function getStaticPaths() {
+  const client = createClient({
+    projectId: "6df459fs",
+    dataset: "production",
+    useCdn: true,
+    apiVersion: "2024-02-21",
+  });
+  let servicios = [];
+  try {
+    servicios = await client.fetch(`*[_type == "servicio" && defined(slug.current)]`);
+  } catch (e) {
+    console.error("Error al conectar con Sanity:", e.message);
+  }
+  return servicios.map((s) => ({ params: { slug: s.slug.current } }));
+}
+
+const { slug } = Astro.params;
+
+const servicio = await client.fetch(`*[_type == "servicio" && slug.current == $slug][0]{
+  nombre,
+  descripcionBreve,
+  "urlFondo": imagenFondo.asset->url,
+  paquetes[] { nombrePaquete, descripcion, precio },
+  "galeriaExclusiva": imagenesServicio[].asset->url
+}`, { slug });
+
+if (!servicio) return Astro.redirect('/404');
+
+const WHATSAPP = "529333251889";
+const waLink = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
+const formatoPrecio = (p) => typeof p === "number" ? p.toLocaleString("es-MX") : p;
+
+// Convierte la descripción de Sanity en estructura:
+// - Líneas que empiezan con "Nota:" → recuadro de nota
+// - Líneas en MAYÚSCULAS → subtítulo de sección
+// - Las demás → puntos con palomita
+const parsearDescripcion = (texto = "") =>
+  texto.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+    if (/^nota:/i.test(l)) return { tipo: "nota", texto: l };
+    const soloLetras = l.replace(/[^\p{L}\s]/gu, "").trim();
+    if (soloLetras.length > 3 && soloLetras === soloLetras.toUpperCase()) return { tipo: "titulo", texto: l };
+    return { tipo: "item", texto: l };
+  });
+---
+
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{servicio.nombre} | HR Estudio · Paraíso, Tabasco</title>
+    <meta name="description" content={`Paquetes de ${servicio.nombre} en Paraíso, Tabasco. ${servicio.descripcionBreve || "Fotografía profesional con HR Estudio."} Cotiza por WhatsApp.`} />
+    {servicio.urlFondo && <meta property="og:image" content={servicio.urlFondo} />}
+    <meta property="og:title" content={`${servicio.nombre} | HR Estudio`} />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style is:global>
+        :root {
+            --negro: #161412;
+            --carbon: #1F1C19;
+            --crema: #F4EFE6;
+            --humo: #9B948A;
+            --oro: #C5A059;
+            --oro-claro: #E2C98F;
+            --borde: rgba(197, 160, 89, 0.25);
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { background: var(--negro); color: var(--crema); font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; }
+        ::selection { background: var(--oro); color: var(--negro); }
+
+        #progress-bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--oro); z-index: 100000; width: 0%; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+        /* Header del servicio (fondo por atributo style, no por CSS interpolado) */
+        .header-servicio {
+            position: relative; height: 62vh; min-height: 420px;
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; padding: 0 20px;
+        }
+        .header-servicio::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(22,20,18,0.5), rgba(22,20,18,0.35) 50%, var(--negro) 100%); }
+        .header-inner { position: relative; z-index: 2; }
+        .header-servicio h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 7vw, 4.6rem); font-weight: 400; letter-spacing: 10px; margin: 24px 0 12px; text-transform: uppercase; }
+        .header-servicio p { color: var(--oro-claro); letter-spacing: 3px; font-size: 0.78rem; text-transform: uppercase; margin: 0; }
+        .back-link { position: relative; z-index: 2; color: var(--crema); text-decoration: none; font-size: 0.72rem; letter-spacing: 3px; border: 1px solid rgba(244,239,230,0.4); padding: 10px 22px; border-radius: 50px; transition: 0.3s; }
+        .back-link:hover { background: var(--oro); border-color: var(--oro); color: var(--negro); }
+
+        /* Paquetes */
+        .paquetes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px; margin-top: -90px; position: relative; z-index: 10; }
+        .card-paquete {
+            background: var(--carbon);
+            border: 1px solid var(--borde);
+            padding: 44px 32px;
+            text-align: center;
+            border-radius: 18px;
+            transition: transform 0.35s ease, border-color 0.35s;
+            display: flex; flex-direction: column;
+        }
+        .card-paquete:hover { transform: translateY(-8px); border-color: var(--oro); }
+        .card-paquete h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 1.5rem; margin: 0 0 14px; color: var(--oro-claro); }
+        .card-paquete .desc { flex: 1; text-align: left; margin-bottom: 6px; }
+        .desc-item { display: flex; gap: 10px; color: var(--humo); font-size: 0.9rem; line-height: 1.65; font-weight: 300; margin-bottom: 9px; }
+        .desc-item .check { color: var(--oro); flex-shrink: 0; font-size: 0.85rem; }
+        .desc-titulo { display: block; color: var(--oro-claro); font-size: 0.72rem; letter-spacing: 2.5px; text-transform: uppercase; margin: 22px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--borde); }
+        .desc-titulo:first-child { margin-top: 0; }
+        .desc-nota { display: block; background: rgba(197, 160, 89, 0.08); border-left: 2px solid var(--oro); padding: 10px 14px; border-radius: 0 8px 8px 0; color: var(--crema); font-size: 0.82rem; line-height: 1.6; font-weight: 300; font-style: italic; margin: 14px 0; }
+        .precio { display: block; font-size: 2.3rem; color: var(--oro); font-family: 'Playfair Display', serif; margin: 24px 0; }
+        .precio small { font-size: 0.95rem; color: var(--humo); font-family: 'Inter', sans-serif; letter-spacing: 1px; }
+
+        .btn-reservar {
+            background: var(--oro); color: var(--negro);
+            padding: 15px 36px; text-decoration: none; display: inline-block;
+            letter-spacing: 2.5px; font-size: 0.74rem; text-transform: uppercase;
+            border-radius: 50px; transition: 0.3s;
+        }
+        .btn-reservar:hover { background: var(--oro-claro); transform: scale(1.04); }
+
+        /* Galería */
+        .seccion-galeria { margin-top: 100px; }
+        .seccion-galeria h2 { font-family: 'Playfair Display', serif; font-weight: 400; text-align: center; font-size: clamp(1.7rem, 4vw, 2.5rem); margin: 0 0 10px; }
+        .seccion-galeria .sub { display: block; text-align: center; letter-spacing: 4px; font-size: 0.7rem; text-transform: uppercase; color: var(--oro); margin-bottom: 34px; }
+        .filter-toggle { display: block; margin: 0 auto 36px; background: none; border: 1px solid rgba(244,239,230,0.25); color: var(--crema); padding: 9px 22px; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; font-size: 0.7rem; border-radius: 50px; transition: 0.3s; font-family: 'Inter', sans-serif; }
+        .filter-toggle:hover { border-color: var(--oro); color: var(--oro); }
+        .gallery-grid { columns: 3 280px; column-gap: 14px; }
+        .gallery-grid.art-mode img { filter: grayscale(1) contrast(1.15); }
+        .gallery-item { break-inside: avoid; margin-bottom: 14px; border-radius: 10px; overflow: hidden; background: var(--carbon); }
+        .gallery-item img { width: 100%; display: block; transition: transform 0.7s ease, filter 0.5s; }
+        .gallery-item:hover img { transform: scale(1.05); }
+
+        /* CTA final */
+        .cta-final { text-align: center; margin: 100px 0 40px; border-top: 1px solid var(--borde); padding-top: 70px; }
+        .cta-final h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 12px; }
+        .cta-final h2 em { color: var(--oro); }
+        .cta-final p { color: var(--humo); font-weight: 300; margin: 0 0 30px; }
+
+        /* WhatsApp flotante */
+        .wa-float { position: fixed; bottom: 26px; right: 26px; z-index: 5000; width: 58px; height: 58px; border-radius: 50%; background: #25D366; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.45); transition: transform 0.3s; }
+        .wa-float:hover { transform: scale(1.1); }
+        .wa-float svg { width: 30px; height: 30px; fill: white; }
+
+        .reveal { opacity: 0; transform: translateY(30px); transition: 0.7s ease-out; }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+    </style>
+</head>
+<body>
+
+    <div id="progress-bar"></div>
+
+    <header class="header-servicio" style={servicio.urlFondo ? `background-image: url('${servicio.urlFondo}')` : ""}>
+        <a href="/" class="back-link">← Volver al inicio</a>
+        <div class="header-inner">
+            <h1>{servicio.nombre}</h1>
+            <p>HR Estudio · Paraíso, Tabasco</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="paquetes-grid">
+            {servicio.paquetes?.map((p) => (
+                <div class="card-paquete reveal">
+                    <h3>{p.nombrePaquete}</h3>
+                    <div class="desc">
+                        {parsearDescripcion(p.descripcion).map((linea) => {
+                            if (linea.tipo === "titulo") return <span class="desc-titulo">{linea.texto}</span>;
+                            if (linea.tipo === "nota") return <span class="desc-nota">{linea.texto}</span>;
+                            return <span class="desc-item"><span class="check">✓</span>{linea.texto}</span>;
+                        })}
+                    </div>
+                    <span class="precio"><small>$</small>{formatoPrecio(p.precio)} <small>MXN</small></span>
+                    <a href={waLink(`Hola, quiero información del paquete ${p.nombrePaquete} para ${servicio.nombre}`)} class="btn-reservar" target="_blank" rel="noopener">
+                        Reservar ahora
+                    </a>
+                </div>
+            ))}
+        </div>
+
+        {servicio.galeriaExclusiva?.length > 0 && (
+            <section class="seccion-galeria">
+                <span class="sub">Nuestro trabajo</span>
+                <h2>Portafolio de {servicio.nombre}</h2>
+                <button class="filter-toggle" id="btn-filtro">Blanco y negro</button>
+                <div class="gallery-grid" id="service-gallery">
+                    {servicio.galeriaExclusiva.map((url) => (
+                        <div class="gallery-item reveal">
+                            <img src={url} alt={`Fotografía de ${servicio.nombre} por HR Estudio`} loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+            </section>
+        )}
+
+        <section class="cta-final reveal">
+            <h2>¿Te gustó lo que viste? <em>Aparta tu fecha</em></h2>
+            <p>Las fechas se agotan rápido, sobre todo en temporada. Escríbenos sin compromiso.</p>
+            <a href={waLink(`Hola, quiero cotizar ${servicio.nombre} con HR Estudio`)} class="btn-reservar" target="_blank" rel="noopener">Cotizar por WhatsApp</a>
+        </section>
+    </main>
+
+    <a href={waLink(`Hola, quiero información sobre ${servicio.nombre}`)} class="wa-float" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    </a>
+
+    <script is:inline>
+        window.addEventListener('scroll', () => {
+            const h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progress-bar').style.width = (window.scrollY / h) * 100 + '%';
+        });
+
+        document.getElementById('btn-filtro')?.addEventListener('click', function() {
+            const activo = document.getElementById('service-gallery').classList.toggle('art-mode');
+            this.textContent = activo ? 'Color original' : 'Blanco y negro';
+        });
+
+        function reveal() {
+            document.querySelectorAll('.reveal').forEach(r => {
+                if (r.getBoundingClientRect().top < window.innerHeight - 50) r.classList.add('active');
+            });
+        }
+        window.addEventListener('scroll', reveal);
+        reveal();
+    </script>
+</body>
+</html>
