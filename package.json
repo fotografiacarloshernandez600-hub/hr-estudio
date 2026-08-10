@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/vercel": "^9.0.5",
     "@sanity/client": "^7.15.0",
     "astro": "^5.17.1"
   }
