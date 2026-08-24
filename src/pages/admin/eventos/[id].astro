@@ -1,0 +1,166 @@
+---
+export const prerender = false;
+import { supabaseAdmin } from "../../../../lib/supabase";
+import { urlDescargaTemporal } from "../../../../lib/r2";
+
+const { id } = Astro.params;
+
+const { data: evento } = await supabaseAdmin
+  .from("events")
+  .select("*")
+  .eq("id", id)
+  .single();
+
+let fotos: any[] = [];
+if (evento) {
+  const { data } = await supabaseAdmin
+    .from("photos")
+    .select("id, thumbnail_key, nombre_archivo, creado_en")
+    .eq("event_id", id)
+    .order("creado_en", { ascending: false });
+
+  fotos = await Promise.all(
+    (data ?? []).map(async (f) => ({
+      ...f,
+      thumb_url: f.thumbnail_key ? await urlDescargaTemporal(f.thumbnail_key, 3600) : null,
+    }))
+  );
+}
+---
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{evento?.nombre ?? "Evento"} | Admin HR Estudio</title>
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style is:global>
+    :root {
+      --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
+      --crema: #F4EFE6; --humo: #9B948A; --oro: #C5A059; --oro-claro: #E2C98F;
+      --borde: rgba(197, 160, 89, 0.25);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--negro); color: var(--crema); font-family: 'Inter', sans-serif; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px 80px; }
+    a.volver { color: var(--humo); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 16px; }
+    a.volver:hover { color: var(--oro); }
+    h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 26px; margin: 0 0 4px; }
+    .meta { color: var(--humo); font-size: 14px; margin-bottom: 24px; }
+    .panel { background: var(--carbon); border: 1px solid var(--borde); border-radius: 4px; padding: 28px; margin-bottom: 28px; }
+    .panel h2 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 17px; margin: 0 0 16px; }
+    .codigo-box { display: flex; align-items: center; gap: 12px; background: var(--carbon-2); border: 1px solid var(--borde); border-radius: 4px; padding: 16px 20px; margin-bottom: 8px; }
+    .codigo-box code { font-size: 20px; letter-spacing: 1px; color: var(--oro-claro); }
+    .codigo-box button { margin-left: auto; background: none; border: 1px solid var(--borde); color: var(--humo); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .codigo-box button:hover { color: var(--crema); border-color: var(--oro); }
+    .link-galeria { font-size: 13px; color: var(--humo); }
+    .link-galeria a { color: var(--oro-claro); }
+
+    .dropzone { border: 1px dashed var(--borde); border-radius: 4px; padding: 32px; text-align: center; color: var(--humo); font-size: 14px; cursor: pointer; }
+    .dropzone:hover { border-color: var(--oro); color: var(--crema); }
+    input[type=file] { display: none; }
+    .estado-subida { font-size: 13px; color: var(--humo); margin-top: 12px; }
+    .estado-subida.ok { color: var(--oro-claro); }
+    .estado-subida.error { color: #E2857A; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 20px; }
+    .grid img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 4px; border: 1px solid var(--borde); background: var(--carbon-2); }
+    .vacio { color: var(--humo); font-size: 14px; padding: 12px 0; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <a class="volver" href="/admin/eventos">← Todos los eventos</a>
+
+    {!evento && <p>Evento no encontrado.</p>}
+
+    {evento && (
+      <>
+        <h1>{evento.nombre}</h1>
+        <p class="meta">
+          {evento.tipo === "carrera" ? "Carrera atlética" : "Cliente"}
+          {evento.fecha && ` · ${evento.fecha}`}
+        </p>
+
+        <section class="panel">
+          <h2>Código de acceso</h2>
+          <div class="codigo-box">
+            <code id="codigo">{evento.codigo_acceso}</code>
+            <button id="btn-copiar">Copiar</button>
+          </div>
+          <p class="link-galeria">
+            Comparte este código por WhatsApp. La persona entra en
+            <a href="/galeria">hr-estudio-fotografia.vercel.app/galeria</a>, lo escribe, y ve
+            y descarga todas las fotos de este evento.
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2>Subir fotos</h2>
+          <label class="dropzone" for="input-fotos">
+            Haz clic para elegir fotos (puedes seleccionar varias a la vez)
+          </label>
+          <input type="file" id="input-fotos" multiple accept="image/*" />
+          <p class="estado-subida" id="estado-subida"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Fotos subidas ({fotos.length})</h2>
+          {fotos.length === 0 && <p class="vacio">Todavía no hay fotos en este evento.</p>}
+          {fotos.length > 0 && (
+            <div class="grid">
+              {fotos.map((f) => (
+                <img src={f.thumb_url ?? ""} alt={f.nombre_archivo ?? ""} loading="lazy" />
+              ))}
+            </div>
+          )}
+        </section>
+      </>
+    )}
+  </main>
+
+  <script define:vars={{ eventId: id }}>
+    const btnCopiar = document.getElementById("btn-copiar");
+    btnCopiar?.addEventListener("click", () => {
+      const codigo = document.getElementById("codigo").textContent;
+      navigator.clipboard.writeText(codigo);
+      btnCopiar.textContent = "Copiado";
+      setTimeout(() => (btnCopiar.textContent = "Copiar"), 1500);
+    });
+
+    const input = document.getElementById("input-fotos");
+    const estado = document.getElementById("estado-subida");
+
+    input?.addEventListener("change", async () => {
+      const archivos = input.files;
+      if (!archivos || archivos.length === 0) return;
+
+      estado.className = "estado-subida";
+      estado.textContent = `Subiendo ${archivos.length} foto(s)...`;
+
+      const formData = new FormData();
+      formData.append("eventId", eventId);
+      for (const archivo of archivos) formData.append("fotos", archivo);
+
+      try {
+        const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
+        const data = await res.json();
+
+        if (!res.ok) {
+          estado.className = "estado-subida error";
+          estado.textContent = data.error ?? "Ocurrió un error al subir las fotos";
+          return;
+        }
+
+        estado.className = "estado-subida ok";
+        estado.textContent = `${data.fotos_subidas} foto(s) subida(s). Actualizando...`;
+        setTimeout(() => window.location.reload(), 800);
+      } catch {
+        estado.className = "estado-subida error";
+        estado.textContent = "Ocurrió un problema de conexión.";
+      }
+    });
+  </script>
+</body>
+</html>

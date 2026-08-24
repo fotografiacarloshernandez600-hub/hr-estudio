@@ -1,0 +1,172 @@
+---
+export const prerender = false;
+import { supabaseAdmin } from "../../../lib/supabase";
+
+const { data: eventos, error } = await supabaseAdmin
+  .from("events")
+  .select("id, nombre, tipo, fecha, codigo_acceso, activo, creado_en")
+  .order("creado_en", { ascending: false });
+---
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eventos | Admin HR Estudio</title>
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style is:global>
+    :root {
+      --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
+      --crema: #F4EFE6; --humo: #9B948A; --oro: #C5A059; --oro-claro: #E2C98F;
+      --borde: rgba(197, 160, 89, 0.25);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--negro); color: var(--crema); font-family: 'Inter', sans-serif; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px 80px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 26px; margin: 0; }
+    .btn-logout { background: none; border: 1px solid var(--borde); color: var(--humo); padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .btn-logout:hover { color: var(--crema); border-color: var(--oro); }
+
+    .panel { background: var(--carbon); border: 1px solid var(--borde); border-radius: 4px; padding: 28px; margin-bottom: 32px; }
+    .panel h2 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 18px; margin: 0 0 20px; }
+    .row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    input, select { width: 100%; padding: 12px 14px; font-size: 14px; background: var(--carbon-2); color: var(--crema); border: 1px solid var(--borde); border-radius: 4px; font-family: 'Inter', sans-serif; }
+    input:focus, select:focus { outline: none; border-color: var(--oro); }
+    label { font-size: 12px; color: var(--humo); display: block; margin-bottom: 6px; }
+    button.primary { padding: 12px 22px; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; background: var(--oro); color: var(--negro); border: none; border-radius: 4px; cursor: pointer; }
+    button.primary:hover:not(:disabled) { background: var(--oro-claro); }
+    button.primary:disabled { opacity: 0.5; }
+    .error { color: #E2857A; font-size: 13px; margin: 4px 0 0; }
+    .ok { color: var(--oro-claro); font-size: 13px; margin: 4px 0 0; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--borde); font-size: 14px; }
+    th { color: var(--humo); font-weight: 400; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:hover { background: var(--carbon-2); }
+    a.fila { color: var(--crema); text-decoration: none; }
+    .badge { font-size: 11px; padding: 3px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge.entrega { background: rgba(197,160,89,0.15); color: var(--oro-claro); }
+    .badge.carrera { background: rgba(155,148,138,0.15); color: var(--humo); }
+    code { background: var(--carbon-2); padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+    .vacio { color: var(--humo); font-size: 14px; padding: 24px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Eventos</h1>
+      <button class="btn-logout" id="btn-logout">Cerrar sesión</button>
+    </header>
+
+    <section class="panel">
+      <h2>Crear nuevo evento</h2>
+      <form id="form-evento">
+        <div class="row">
+          <div>
+            <label>Nombre del evento</label>
+            <input type="text" id="nombre" placeholder="Ej. Boda Ana y Luis / Carrera 5K" required />
+          </div>
+          <div>
+            <label>Tipo</label>
+            <select id="tipo">
+              <option value="entrega">Cliente (boda, XV años, etc.)</option>
+              <option value="carrera">Carrera atlética</option>
+            </select>
+          </div>
+          <div>
+            <label>Fecha</label>
+            <input type="date" id="fecha" />
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label>El código expira en (días, opcional)</label>
+            <input type="number" id="dias_expiracion" placeholder="Ej. 60" />
+          </div>
+        </div>
+        <p class="error" id="error-msg" style="display:none;"></p>
+        <p class="ok" id="ok-msg" style="display:none;"></p>
+        <button type="submit" class="primary" id="btn-crear">Crear evento</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Eventos existentes ({eventos?.length ?? 0})</h2>
+      {error && <p class="error">No se pudieron cargar los eventos: {error.message}</p>}
+      {(!eventos || eventos.length === 0) && !error && (
+        <p class="vacio">Todavía no has creado ningún evento.</p>
+      )}
+      {eventos && eventos.length > 0 && (
+        <table>
+          <thead>
+            <tr><th>Nombre</th><th>Tipo</th><th>Fecha</th><th>Código</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {eventos.map((ev) => (
+              <tr>
+                <td><a class="fila" href={`/admin/eventos/${ev.id}`}>{ev.nombre}</a></td>
+                <td><span class={`badge ${ev.tipo}`}>{ev.tipo}</span></td>
+                <td>{ev.fecha ?? "—"}</td>
+                <td><code>{ev.codigo_acceso}</code></td>
+                <td>{ev.activo ? "Activo" : "Inactivo"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("form-evento") as HTMLFormElement;
+    const btn = document.getElementById("btn-crear") as HTMLButtonElement;
+    const errorMsg = document.getElementById("error-msg") as HTMLParagraphElement;
+    const okMsg = document.getElementById("ok-msg") as HTMLParagraphElement;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorMsg.style.display = "none";
+      okMsg.style.display = "none";
+      btn.disabled = true;
+
+      const nombre = (document.getElementById("nombre") as HTMLInputElement).value;
+      const tipo = (document.getElementById("tipo") as HTMLSelectElement).value;
+      const fecha = (document.getElementById("fecha") as HTMLInputElement).value || null;
+      const dias = (document.getElementById("dias_expiracion") as HTMLInputElement).value;
+
+      const res = await fetch("/api/admin/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre,
+          tipo,
+          fecha,
+          dias_expiracion: dias ? Number(dias) : null,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorMsg.textContent = data.error ?? "No se pudo crear el evento";
+        errorMsg.style.display = "block";
+        btn.disabled = false;
+        return;
+      }
+
+      okMsg.textContent = `Evento creado. Código: ${data.event.codigo_acceso}`;
+      okMsg.style.display = "block";
+      setTimeout(() => {
+        window.location.href = `/admin/eventos/${data.event.id}`;
+      }, 800);
+    });
+
+    document.getElementById("btn-logout")?.addEventListener("click", async () => {
+      await fetch("/api/admin/logout", { method: "POST" });
+      window.location.href = "/admin/login";
+    });
+  </script>
+</body>
+</html>

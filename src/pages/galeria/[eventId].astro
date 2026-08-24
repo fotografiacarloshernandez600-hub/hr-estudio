@@ -1,0 +1,112 @@
+---
+export const prerender = false;
+const { eventId } = Astro.params;
+---
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tu galería | HR Estudio</title>
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style is:global>
+    :root {
+      --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
+      --crema: #F4EFE6; --humo: #9B948A; --oro: #C5A059; --oro-claro: #E2C98F;
+      --borde: rgba(197, 160, 89, 0.25);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--negro); color: var(--crema); font-family: 'Inter', sans-serif; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 30px; margin: 0 0 4px; }
+    p.contador { color: var(--humo); font-size: 14px; margin: 0 0 32px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .foto { background: var(--carbon); border: 1px solid var(--borde); border-radius: 4px; overflow: hidden; }
+    .foto img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--carbon-2); }
+    .foto button {
+      width: 100%; padding: 10px 0; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase;
+      background: var(--oro); color: var(--negro); border: none; cursor: pointer;
+    }
+    .foto button:hover:not(:disabled) { background: var(--oro-claro); }
+    .foto button:disabled { opacity: 0.6; }
+    .estado { text-align: center; color: var(--humo); padding: 80px 0; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Tus fotos</h1>
+    <p class="contador" id="contador">Cargando...</p>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <script define:vars={{ eventId }}>
+    const token = sessionStorage.getItem(`galeria_token_${eventId}`);
+    const grid = document.getElementById("grid");
+    const contador = document.getElementById("contador");
+
+    if (!token) {
+      window.location.href = "/galeria";
+    } else {
+      cargarFotos();
+    }
+
+    async function cargarFotos() {
+      try {
+        const res = await fetch(`/api/gallery/${eventId}/photos`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          contador.textContent = data.error ?? "No se pudo cargar la galería";
+          return;
+        }
+
+        const fotos = data.fotos ?? [];
+        contador.textContent = `${fotos.length} foto${fotos.length === 1 ? "" : "s"}`;
+
+        grid.innerHTML = fotos
+          .map(
+            (f) => `
+          <div class="foto">
+            <img src="${f.thumbnail_url ?? ""}" alt="${f.nombre ?? ""}" loading="lazy" />
+            <button data-id="${f.id}">Descargar</button>
+          </div>
+        `
+          )
+          .join("");
+
+        grid.querySelectorAll("button[data-id]").forEach((btn) => {
+          btn.addEventListener("click", () => descargarFoto(btn));
+        });
+      } catch {
+        contador.textContent = "Ocurrió un problema al cargar tus fotos.";
+      }
+    }
+
+    async function descargarFoto(btn) {
+      const photoId = btn.getAttribute("data-id");
+      const textoOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Descargando...";
+
+      try {
+        const res = await fetch(`/api/gallery/${eventId}/download?photoId=${photoId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.url) {
+          const a = document.createElement("a");
+          a.href = data.url;
+          a.download = data.nombre ?? "foto.jpg";
+          a.click();
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      }
+    }
+  </script>
+</body>
+</html>

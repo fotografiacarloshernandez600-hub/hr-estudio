@@ -1,0 +1,72 @@
+---
+export const prerender = false;
+---
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin | HR Estudio</title>
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style is:global>
+    :root {
+      --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
+      --crema: #F4EFE6; --humo: #9B948A; --oro: #C5A059; --oro-claro: #E2C98F;
+      --borde: rgba(197, 160, 89, 0.25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--negro); color: var(--crema); font-family: 'Inter', sans-serif;
+    }
+    .card { width: 100%; max-width: 380px; padding: 44px 36px; margin: 24px; background: var(--carbon); border: 1px solid var(--borde); border-radius: 4px; }
+    h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 24px; margin: 0 0 24px; }
+    input { width: 100%; padding: 14px 16px; font-size: 16px; background: var(--carbon-2); color: var(--crema); border: 1px solid var(--borde); border-radius: 4px; margin-bottom: 14px; }
+    input:focus { outline: none; border-color: var(--oro); }
+    button { width: 100%; padding: 14px 16px; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; background: var(--oro); color: var(--negro); border: none; border-radius: 4px; cursor: pointer; }
+    button:hover:not(:disabled) { background: var(--oro-claro); }
+    button:disabled { opacity: 0.5; }
+    .error { color: #E2857A; font-size: 13px; margin: -6px 0 14px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Panel de administración</h1>
+    <form id="form-login">
+      <input type="password" id="password" placeholder="Contraseña" autofocus />
+      <p class="error" id="error-msg" style="display:none;"></p>
+      <button type="submit" id="btn">Entrar</button>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById("form-login") as HTMLFormElement;
+    const password = document.getElementById("password") as HTMLInputElement;
+    const btn = document.getElementById("btn") as HTMLButtonElement;
+    const errorMsg = document.getElementById("error-msg") as HTMLParagraphElement;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorMsg.style.display = "none";
+      btn.disabled = true;
+
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password.value }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        errorMsg.textContent = data.error ?? "No se pudo iniciar sesión";
+        errorMsg.style.display = "block";
+        btn.disabled = false;
+        return;
+      }
+
+      window.location.href = "/admin/eventos";
+    });
+  </script>
+</body>
+</html>

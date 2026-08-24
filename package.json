@@ -10,7 +10,12 @@
   },
   "dependencies": {
     "@astrojs/vercel": "^9.0.5",
+    "@aws-sdk/client-s3": "^3.782.0",
+    "@aws-sdk/s3-request-presigner": "^3.782.0",
     "@sanity/client": "^7.15.0",
-    "astro": "^5.17.1"
+    "@supabase/supabase-js": "^2.49.4",
+    "astro": "^5.17.1",
+    "jose": "^5.9.6",
+    "sharp": "^0.33.5"
   }
 }

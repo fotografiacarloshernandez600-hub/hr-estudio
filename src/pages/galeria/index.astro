@@ -1,0 +1,143 @@
+---
+export const prerender = false;
+---
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tu galería | HR Estudio</title>
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style is:global>
+    :root {
+      --negro: #161412;
+      --carbon: #1F1C19;
+      --carbon-2: #26221E;
+      --crema: #F4EFE6;
+      --humo: #9B948A;
+      --oro: #C5A059;
+      --oro-claro: #E2C98F;
+      --borde: rgba(197, 160, 89, 0.25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--negro);
+      color: var(--crema);
+      font-family: 'Inter', sans-serif;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      padding: 48px 36px;
+      margin: 24px;
+      background: var(--carbon);
+      border: 1px solid var(--borde);
+      border-radius: 4px;
+    }
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 600;
+      font-size: 28px;
+      margin: 0 0 8px;
+      color: var(--crema);
+    }
+    p.sub {
+      color: var(--humo);
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 28px;
+    }
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.5px;
+      background: var(--carbon-2);
+      color: var(--crema);
+      border: 1px solid var(--borde);
+      border-radius: 4px;
+      margin-bottom: 14px;
+    }
+    input:focus { outline: none; border-color: var(--oro); }
+    input::placeholder { color: var(--humo); }
+    button {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-family: 'Inter', sans-serif;
+      background: var(--oro);
+      color: var(--negro);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover:not(:disabled) { background: var(--oro-claro); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .error {
+      color: #E2857A;
+      font-size: 13px;
+      margin: -6px 0 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Tu galería</h1>
+    <p class="sub">Ingresa el código que te compartimos por WhatsApp para ver y descargar tus fotos.</p>
+
+    <form id="form-codigo">
+      <input type="text" id="codigo" placeholder="Ej. HR-8F2K3A" autocomplete="off" autofocus />
+      <p class="error" id="error-msg" style="display:none;"></p>
+      <button type="submit" id="btn-submit">Ver mi galería</button>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById("form-codigo") as HTMLFormElement;
+    const input = document.getElementById("codigo") as HTMLInputElement;
+    const btn = document.getElementById("btn-submit") as HTMLButtonElement;
+    const errorMsg = document.getElementById("error-msg") as HTMLParagraphElement;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorMsg.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Verificando...";
+
+      try {
+        const res = await fetch("/api/gallery/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ codigo: input.value }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errorMsg.textContent = data.error ?? "No se pudo validar el código";
+          errorMsg.style.display = "block";
+          return;
+        }
+
+        sessionStorage.setItem(`galeria_token_${data.evento.id}`, data.token);
+        window.location.href = `/galeria/${data.evento.id}`;
+      } catch {
+        errorMsg.textContent = "Ocurrió un problema. Intenta de nuevo.";
+        errorMsg.style.display = "block";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Ver mi galería";
+      }
+    });
+  </script>
+</body>
+</html>
