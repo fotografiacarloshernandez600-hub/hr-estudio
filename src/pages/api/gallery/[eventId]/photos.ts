@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../../lib/supabase";
-import { urlDescargaTemporal } from "../../../../lib/r2";
+import { urlDescargaTemporal } from "../../../../lib/storage";
 import { jwtVerify } from "jose";
 
 export const prerender = false;

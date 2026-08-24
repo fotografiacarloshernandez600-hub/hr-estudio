@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { subirArchivo } from "../../../lib/r2";
+import { subirArchivo } from "../../../lib/storage";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
 

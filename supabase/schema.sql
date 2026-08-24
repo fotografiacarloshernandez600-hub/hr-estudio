@@ -41,3 +41,12 @@ create table photos (
 );
 
 create index idx_photos_event on photos (event_id);
+
+-- ------------------------------------------------------------
+-- Bucket de Supabase Storage donde se guardan las fotos.
+-- Privado (public = false): nadie accede directo, solo mediante enlaces
+-- firmados y temporales que genera el backend.
+-- ------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('fotos', 'fotos', false)
+on conflict (id) do nothing;

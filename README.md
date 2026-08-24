@@ -61,23 +61,33 @@ funcionamiento.
 npm install
 ```
 
-(ya están en `package.json`: `@supabase/supabase-js`, `@aws-sdk/client-s3`,
-`@aws-sdk/s3-request-presigner`, `jose`, `sharp`)
+(ya están en `package.json`: `@supabase/supabase-js`, `jose`, `sharp`)
 
-### 2. Crear cuentas y recursos (ambas gratis)
+### 2. Crear tu proyecto en Supabase (todo en un solo lugar, gratis, sin tarjeta)
 
-- **Supabase**: crea un proyecto en supabase.com, ve a SQL Editor y ejecuta
-  el contenido de `supabase/schema.sql`.
-- **Cloudflare R2**: crea un bucket (gratis hasta 10 GB) y genera un API
-  Token con permisos de lectura/escritura sobre ese bucket.
+Ve a supabase.com, crea un proyecto, y en SQL Editor ejecuta el contenido de
+`supabase/schema.sql`. Ese archivo crea las tablas **y** el bucket de
+almacenamiento de fotos automáticamente — no necesitas entrar a ninguna otra
+plataforma ni crear ninguna cuenta aparte.
+
+**Si ya habías corrido una versión anterior de `schema.sql`** (antes de este
+cambio), no lo vuelvas a correr completo — te va a marcar error porque las
+tablas `events` y `photos` ya existen. Solo corre esta parte, que es la única
+nueva:
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('fotos', 'fotos', false)
+on conflict (id) do nothing;
+```
 
 ### 3. Variables de entorno
 
 Completa en `.env` (local) y en Vercel > Project Settings > Environment
 Variables los valores de `.env.example`: `SUPABASE_URL`,
-`SUPABASE_SERVICE_ROLE_KEY`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
-`R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `GALLERY_JWT_SECRET`,
-`ADMIN_JWT_SECRET` y `ADMIN_PASSWORD` (tu contraseña para entrar al panel).
+`SUPABASE_SERVICE_ROLE_KEY`, `GALLERY_JWT_SECRET`, `ADMIN_JWT_SECRET` y
+`ADMIN_PASSWORD` (tu contraseña para entrar al panel). Ya no se necesita
+ninguna variable de Cloudflare R2.
 
 ### 4. Usarlo
 
@@ -93,6 +103,13 @@ Variables los valores de `.env.example`: `SUPABASE_URL`,
    todas las fotos del evento.
 
 ### Pendientes / decisiones futuras
+
+- [ ] **Límite de almacenamiento gratis**: el plan gratis de Supabase
+      Storage da 1 GB. Con fotos de buena resolución esto se llena rápido
+      (unos cientos de fotos, según el peso de cada una). Cuando te acerques
+      al límite, Supabase te avisa; en ese momento puedes borrar eventos
+      viejos ya entregados, o pasar al plan Pro de Supabase (~$25 USD/mes,
+      da 100 GB) si el negocio ya lo justifica.
 
 - [ ] Si subes 1,000+ fotos de golpe, hazlo en lotes de 50-100 — un solo
       request con miles de fotos puede chocar con el límite de tamaño/tiempo
