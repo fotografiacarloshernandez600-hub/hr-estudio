@@ -89,6 +89,12 @@ Variables los valores de `.env.example`: `SUPABASE_URL`,
 `ADMIN_PASSWORD` (tu contraseña para entrar al panel). Ya no se necesita
 ninguna variable de Cloudflare R2.
 
+Además, agrega `PUBLIC_SUPABASE_URL` (mismo valor que `SUPABASE_URL`) y
+`PUBLIC_SUPABASE_ANON_KEY` (en Supabase: Project Settings > API > Project
+API keys > **anon / public** — ojo, no es la `service_role`). Estas dos sí
+son seguras de exponer al navegador; permiten subir fotos grandes directo
+a Supabase Storage sin pasar por el límite de tamaño de Vercel.
+
 ### 4. Usarlo
 
 1. Entra a `/admin/login` con tu `ADMIN_PASSWORD`.
@@ -120,6 +126,28 @@ boda de unas cuantas decenas o cientos de fotos, no hay problema. Para un
 evento de miles de fotos en alta resolución, es posible que el ZIP no
 alcance a terminar en ese tiempo y la descarga falle — en ese caso, la
 descarga foto por foto sigue funcionando sin límite.
+
+### "Guardar todas en tu galería" (mejor que el ZIP en celular)
+
+**Límite real que no se puede evitar:** ningún sitio web puede guardar fotos
+automáticamente en la galería de un celular sin que la persona haga nada —
+es una restricción de seguridad de iOS y Android a propósito (si cualquier
+página pudiera hacerlo, sería un riesgo de privacidad). No hay forma de
+saltarse esto con tecnología web.
+
+Lo que sí se puede, y es mucho mejor que un ZIP para alguien que no es
+técnico: en `/galeria/[eventId]` hay un botón **"Guardar todas en tu
+galería"** que abre un panel y va mostrando las fotos una por una. En cada
+una, toca "Guardar esta foto" y se abre el panel nativo de "Compartir" del
+celular — ahí eligen "Guardar imagen" o "Guardar en Fotos" y queda directo
+en su galería, sin descomprimir nada. Es un toque por foto, pero es el flujo
+que la mayoría de la gente ya conoce (es el mismo que usan para guardar
+fotos de WhatsApp o Instagram).
+
+En computadora (donde no existe ese panel de compartir), el mismo botón cae
+automáticamente a una descarga normal. El botón de ZIP se dejó como opción
+secundaria, más chica, para quien prefiera todo de una vez y sepa
+descomprimir.
 
 ### Pendientes / decisiones futuras
 

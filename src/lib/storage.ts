@@ -13,6 +13,16 @@ export async function subirArchivo(key: string, body: Buffer, contentType: strin
   if (error) throw error;
 }
 
+// Genera un permiso temporal para que el NAVEGADOR suba un archivo directo
+// a Supabase Storage, sin pasar por nuestra función de Vercel (que corta
+// peticiones de más de ~4.5MB). Usado para fotos originales, que pueden
+// pesar bastante más que eso.
+export async function crearUrlSubida(key: string) {
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUploadUrl(key);
+  if (error) throw error;
+  return data; // { signedUrl, token, path }
+}
+
 // Genera un enlace de descarga temporal (por defecto 1 hora).
 export async function urlDescargaTemporal(key: string, segundosValidez = 3600) {
   const { data, error } = await supabaseAdmin.storage

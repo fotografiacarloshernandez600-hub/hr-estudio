@@ -108,7 +108,7 @@ if (evento) {
         <section class="panel">
           <h2>Subir fotos</h2>
           <label class="dropzone" for="input-fotos">
-            Haz clic para elegir fotos (puedes seleccionar varias a la vez)
+            Haz clic para elegir fotos (puedes seleccionar varias a la vez, sin límite de peso por foto)
           </label>
           <input type="file" id="input-fotos" multiple accept="image/*" />
           <p class="estado-subida" id="estado-subida"></p>
@@ -135,6 +135,24 @@ if (evento) {
   </main>
 
   <script define:vars={{ eventId: id }}>
+    // Este script solo pasa el eventId al módulo de abajo. Va aparte
+    // porque un script con define:vars no puede usar "import" (Astro lo
+    // trata como script en línea, sin empaquetar).
+    window.__EVENT_ID__ = eventId;
+  </script>
+
+  <script>
+    import { createClient } from "@supabase/supabase-js";
+
+    const eventId = window.__EVENT_ID__;
+    // Llave pública (anon), segura de exponer: la autorización real de
+    // cada subida la da el token de un solo uso que pedimos a nuestro
+    // propio backend en cada foto, no esta llave.
+    const supabase = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+    );
+
     const btnCopiar = document.getElementById("btn-copiar");
     btnCopiar?.addEventListener("click", () => {
       const codigo = document.getElementById("codigo").textContent;
@@ -147,32 +165,64 @@ if (evento) {
     const estado = document.getElementById("estado-subida");
 
     input?.addEventListener("change", async () => {
-      const archivos = input.files;
-      if (!archivos || archivos.length === 0) return;
+      const archivos = Array.from(input.files || []);
+      if (archivos.length === 0) return;
 
-      estado.className = "estado-subida";
-      estado.textContent = `Subiendo ${archivos.length} foto(s)...`;
+      let subidas = 0;
 
-      const formData = new FormData();
-      formData.append("eventId", eventId);
-      for (const archivo of archivos) formData.append("fotos", archivo);
+      for (let i = 0; i < archivos.length; i++) {
+        const archivo = archivos[i];
+        estado.className = "estado-subida";
+        estado.textContent = `Subiendo ${i + 1}/${archivos.length}: ${archivo.name}...`;
 
-      try {
-        const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
-        const data = await res.json();
+        try {
+          // 1. Pedimos permiso: un lugar y un token de un solo uso para
+          //    subir este archivo directo a Supabase (sin pasar por Vercel).
+          const resUrl = await fetch("/api/admin/upload-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eventId, nombreArchivo: archivo.name }),
+          });
+          const datosUrl = await resUrl.json();
+          if (!resUrl.ok) throw new Error(datosUrl.error || "No se pudo iniciar la subida");
 
-        if (!res.ok) {
+          // 2. Subimos el archivo ORIGINAL directo a Supabase Storage.
+          //    Esto puede pesar decenas de MB sin ningún problema: no toca
+          //    nuestra función de Vercel para nada.
+          const { error: errorSubida } = await supabase.storage
+            .from("fotos")
+            .uploadToSignedUrl(datosUrl.path, datosUrl.token, archivo);
+          if (errorSubida) throw errorSubida;
+
+          // 3. Avisamos a nuestro backend: genera el thumbnail y guarda el registro.
+          const resConfirmar = await fetch("/api/admin/confirmar-foto", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              eventId,
+              storageKey: datosUrl.storageKey,
+              nombreArchivo: archivo.name,
+            }),
+          });
+          const datosConfirmar = await resConfirmar.json();
+          if (!resConfirmar.ok) throw new Error(datosConfirmar.error || "No se pudo procesar la foto");
+
+          subidas++;
+        } catch (e) {
+          console.error("Error subiendo", archivo.name, e);
           estado.className = "estado-subida error";
-          estado.textContent = data.error ?? "Ocurrió un error al subir las fotos";
-          return;
+          estado.textContent = `"${archivo.name}" falló: ${e.message || "error desconocido"}. Sigo con las demás...`;
+          await new Promise((r) => setTimeout(r, 1400));
         }
+      }
 
+      if (subidas > 0) {
         estado.className = "estado-subida ok";
-        estado.textContent = `${data.fotos_subidas} foto(s) subida(s). Actualizando...`;
-        setTimeout(() => window.location.reload(), 800);
-      } catch {
+        estado.textContent = `${subidas} de ${archivos.length} foto(s) subida(s). Actualizando...`;
+        setTimeout(() => window.location.reload(), 900);
+      } else {
         estado.className = "estado-subida error";
-        estado.textContent = "Ocurrió un problema de conexión.";
+        estado.textContent = "No se pudo subir ninguna foto. Revisa tu conexión e intenta de nuevo.";
       }
     });
 

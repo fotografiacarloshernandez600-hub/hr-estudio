@@ -50,17 +50,57 @@ const { eventId } = Astro.params;
     /* -------- Toolbar -------- */
     .toolbar {
       max-width: 1280px; margin: 0 auto; padding: 28px 24px 0;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
     }
-    .btn-zip {
+    .btn-zip, .btn-guardar {
       display: inline-flex; align-items: center; gap: 10px;
       padding: 13px 26px; font-size: 13px; letter-spacing: 0.8px; text-transform: uppercase;
-      font-weight: 500; background: var(--oro); color: var(--negro);
-      border: none; border-radius: 3px; cursor: pointer; text-decoration: none;
+      font-weight: 500; border-radius: 3px; cursor: pointer; text-decoration: none; border: none;
       transition: background 0.2s, transform 0.15s;
     }
-    .btn-zip:hover { background: var(--oro-claro); transform: translateY(-1px); }
-    .btn-zip svg { width: 16px; height: 16px; }
+    .btn-guardar { background: var(--oro); color: var(--negro); }
+    .btn-guardar:hover { background: var(--oro-claro); transform: translateY(-1px); }
+    .btn-zip {
+      background: none; color: var(--humo); border: 1px solid var(--borde);
+      font-size: 12px; padding: 9px 18px;
+    }
+    .btn-zip:hover { color: var(--crema); border-color: var(--oro); }
+    .btn-zip svg, .btn-guardar svg { width: 16px; height: 16px; }
+
+    /* -------- Panel de guardado guiado (paso a paso) -------- */
+    .panel-guardado {
+      position: fixed; inset: 0; background: rgba(10,9,8,0.96); z-index: 1100;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+      backdrop-filter: blur(4px);
+    }
+    .panel-guardado.abierto { display: flex; animation: fundir 0.2s ease; }
+    .caja-guardado {
+      width: 100%; max-width: 420px; background: var(--carbon); border: 1px solid var(--borde);
+      border-radius: 8px; padding: 36px 32px; text-align: center;
+    }
+    .caja-guardado img {
+      width: 140px; height: 140px; object-fit: cover; border-radius: 6px;
+      margin: 0 auto 20px; display: block; border: 1px solid var(--borde);
+    }
+    .caja-guardado h2 {
+      font-family: 'Playfair Display', serif; font-style: italic; font-weight: 600;
+      font-size: 20px; margin: 0 0 6px;
+    }
+    .progreso-texto { color: var(--humo); font-size: 13px; margin: 0 0 20px; }
+    .barra-progreso {
+      height: 3px; background: var(--carbon-2); border-radius: 2px; margin-bottom: 24px; overflow: hidden;
+    }
+    .barra-progreso-fill { height: 100%; background: var(--oro); transition: width 0.3s ease; }
+    .caja-guardado button {
+      width: 100%; padding: 14px; font-size: 13px; letter-spacing: 0.8px; text-transform: uppercase;
+      font-weight: 500; border-radius: 4px; cursor: pointer; border: none; margin-top: 10px;
+    }
+    .btn-guardar-siguiente { background: var(--oro); color: var(--negro); }
+    .btn-guardar-siguiente:hover { background: var(--oro-claro); }
+    .btn-guardar-siguiente:disabled { opacity: 0.5; cursor: default; }
+    .btn-cerrar-panel { background: none; color: var(--humo); border: 1px solid var(--borde) !important; }
+    .btn-cerrar-panel:hover { color: var(--crema); }
+    .nota-panel { color: var(--humo); font-size: 11.5px; line-height: 1.6; margin-top: 18px; }
 
     /* -------- Grilla -------- */
     .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px 100px; }
@@ -177,10 +217,11 @@ const { eventId } = Astro.params;
   </header>
 
   <div class="toolbar" id="toolbar" style="display:none;">
-    <a class="btn-zip" id="btn-descargar-todo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Descargar todas (.zip)
-    </a>
+    <button class="btn-guardar" id="btn-guardar-galeria" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      Guardar todas en tu galería
+    </button>
+    <a class="btn-zip" id="btn-descargar-todo">Prefiero descargar todo en un .zip</a>
   </div>
 
   <div class="estado-carga" id="estado-carga">
@@ -206,6 +247,19 @@ const { eventId } = Astro.params;
   <footer class="pie">
     Fotografía por <a href="/" target="_blank" rel="noopener">HR Estudio</a> · Paraíso, Tabasco
   </footer>
+
+  <!-- Panel de guardado guiado, foto por foto -->
+  <div class="panel-guardado" id="panel-guardado">
+    <div class="caja-guardado">
+      <img id="pg-imagen" src="" alt="" />
+      <h2 id="pg-titulo">Guardando tus fotos</h2>
+      <p class="progreso-texto" id="pg-progreso">1 de 24</p>
+      <div class="barra-progreso"><div class="barra-progreso-fill" id="pg-barra" style="width:0%;"></div></div>
+      <button class="btn-guardar-siguiente" id="pg-boton" type="button">Guardar esta foto</button>
+      <button class="btn-cerrar-panel" id="pg-cerrar" type="button">Cerrar</button>
+      <p class="nota-panel">Cada foto abre el menú de compartir de tu celular — elige "Guardar imagen" o "Guardar en Fotos" para que quede en tu galería.</p>
+    </div>
+  </div>
 
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox">
@@ -310,23 +364,140 @@ const { eventId } = Astro.params;
       }
     }
 
+    // El navegador puede compartir archivos (típico en celulares) — ahí es
+    // donde vive la opción "Guardar imagen"/"Guardar en Fotos" que manda
+    // la foto directo a la galería. En computadora normalmente no existe,
+    // y ahí usamos la descarga clásica.
+    function puedeCompartirArchivos(file) {
+      return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [file] }));
+    }
+
+    async function obtenerArchivoDeFoto(photoId) {
+      const res = await fetch(`/api/gallery/${eventId}/download?photoId=${photoId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!data.url) throw new Error("No se pudo obtener el enlace de la foto");
+
+      const resImg = await fetch(data.url);
+      const blob = await resImg.blob();
+      const nombre = data.nombre || "foto.jpg";
+      return { file: new File([blob], nombre, { type: blob.type || "image/jpeg" }), nombre, url: data.url };
+    }
+
     async function descargarFoto(photoId, btnEl) {
       if (btnEl) btnEl.classList.add("cargando");
       try {
-        const res = await fetch(`/api/gallery/${eventId}/download?photoId=${photoId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (data.url) {
-          const a = document.createElement("a");
-          a.href = data.url;
-          a.download = data.nombre ?? "foto.jpg";
-          a.click();
+        const { file, nombre, url } = await obtenerArchivoDeFoto(photoId);
+
+        if (puedeCompartirArchivos(file)) {
+          try {
+            await navigator.share({ files: [file] });
+            return;
+          } catch (e) {
+            // Si cancela el panel de compartir, no pasa nada — seguimos con
+            // la descarga clásica como respaldo.
+            if (e && e.name === "AbortError") return;
+          }
         }
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nombre;
+        a.click();
+      } catch {
+        alert("No se pudo descargar esta foto. Intenta de nuevo.");
       } finally {
         if (btnEl) btnEl.classList.remove("cargando");
       }
     }
+
+    // ---------- Guardar todas, paso a paso (mejor opción en celular) ----------
+    const panelGuardado = document.getElementById("panel-guardado");
+    const pgImagen = document.getElementById("pg-imagen");
+    const pgTitulo = document.getElementById("pg-titulo");
+    const pgProgreso = document.getElementById("pg-progreso");
+    const pgBarra = document.getElementById("pg-barra");
+    const pgBoton = document.getElementById("pg-boton");
+    const pgCerrar = document.getElementById("pg-cerrar");
+
+    let indiceGuardado = 0;
+    let guardadoActivo = false;
+
+    document.getElementById("btn-guardar-galeria").addEventListener("click", () => {
+      if (fotos.length === 0) return;
+      indiceGuardado = 0;
+      guardadoActivo = true;
+      panelGuardado.classList.add("abierto");
+      document.body.style.overflow = "hidden";
+      prepararPasoGuardado();
+    });
+
+    function prepararPasoGuardado() {
+      const foto = fotos[indiceGuardado];
+      pgImagen.src = foto.thumbnail_url ?? "";
+      pgTitulo.textContent = "Guardando tus fotos";
+      pgProgreso.textContent = `${indiceGuardado + 1} de ${fotos.length}`;
+      pgBarra.style.width = `${(indiceGuardado / fotos.length) * 100}%`;
+      pgBoton.disabled = false;
+      pgBoton.textContent = "Guardar esta foto";
+    }
+
+    async function guardarPasoActual() {
+      pgBoton.disabled = true;
+      pgBoton.textContent = "Preparando...";
+
+      try {
+        const { file } = await obtenerArchivoDeFoto(fotos[indiceGuardado].id);
+
+        if (puedeCompartirArchivos(file)) {
+          try {
+            await navigator.share({ files: [file] });
+          } catch (e) {
+            // Canceló el panel de compartir: no es error, solo pasamos a la siguiente.
+          }
+        } else {
+          // Sin soporte de "compartir" (típico en computadora): descarga normal.
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(file);
+          a.download = file.name;
+          a.click();
+        }
+      } catch {
+        // seguimos con la siguiente aunque una falle
+      }
+
+      avanzarGuardado();
+    }
+
+    function avanzarGuardado() {
+      indiceGuardado++;
+      if (!guardadoActivo) return;
+
+      if (indiceGuardado >= fotos.length) {
+        pgTitulo.textContent = "¡Listo!";
+        pgProgreso.textContent = `${fotos.length} de ${fotos.length} fotos`;
+        pgBarra.style.width = "100%";
+        pgBoton.textContent = "Cerrar";
+        pgBoton.disabled = false;
+        pgBoton.onclick = cerrarPanelGuardado;
+        return;
+      }
+
+      prepararPasoGuardado();
+    }
+
+    pgBoton.addEventListener("click", () => {
+      if (indiceGuardado < fotos.length) guardarPasoActual();
+    });
+
+    function cerrarPanelGuardado() {
+      guardadoActivo = false;
+      panelGuardado.classList.remove("abierto");
+      document.body.style.overflow = "";
+      pgBoton.onclick = null;
+    }
+    pgCerrar.addEventListener("click", cerrarPanelGuardado);
 
     // ---------- Lightbox ----------
     const lightbox = document.getElementById("lightbox");
