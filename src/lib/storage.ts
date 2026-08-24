@@ -21,3 +21,17 @@ export async function urlDescargaTemporal(key: string, segundosValidez = 3600) {
   if (error) throw error;
   return data.signedUrl;
 }
+
+// Borra un archivo del bucket (usado al eliminar una foto subida por error).
+export async function eliminarArchivo(key: string) {
+  const { error } = await supabaseAdmin.storage.from(BUCKET).remove([key]);
+  if (error) throw error;
+}
+
+// Descarga el contenido de un archivo directo del bucket (usado para armar
+// el ZIP: evitamos generar y volver a pedir una URL firmada por cada foto).
+export async function descargarArchivo(key: string): Promise<Buffer> {
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(key);
+  if (error || !data) throw error ?? new Error(`No se pudo descargar ${key}`);
+  return Buffer.from(await data.arrayBuffer());
+}

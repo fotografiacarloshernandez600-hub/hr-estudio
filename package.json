@@ -12,6 +12,7 @@
     "@astrojs/vercel": "^9.0.5",
     "@sanity/client": "^7.15.0",
     "@supabase/supabase-js": "^2.49.4",
+    "archiver": "^7.0.1",
     "astro": "^5.17.1",
     "jose": "^5.9.6",
     "sharp": "^0.33.5"

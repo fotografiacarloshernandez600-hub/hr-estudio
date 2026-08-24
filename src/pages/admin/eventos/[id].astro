@@ -65,7 +65,16 @@ if (evento) {
     .estado-subida.error { color: #E2857A; }
 
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 20px; }
-    .grid img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 4px; border: 1px solid var(--borde); background: var(--carbon-2); }
+    .foto-item { position: relative; }
+    .foto-item img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 4px; border: 1px solid var(--borde); background: var(--carbon-2); display: block; }
+    .foto-item.borrando img { opacity: 0.4; }
+    .btn-borrar {
+      position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%;
+      background: rgba(22,20,18,0.8); border: 1px solid var(--borde); color: var(--crema);
+      cursor: pointer; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    }
+    .btn-borrar:hover { background: #E2857A; border-color: #E2857A; color: var(--negro); }
+    .btn-borrar:disabled { opacity: 0.5; cursor: default; }
     .vacio { color: var(--humo); font-size: 14px; padding: 12px 0; }
   </style>
 </head>
@@ -106,12 +115,17 @@ if (evento) {
         </section>
 
         <section class="panel">
-          <h2>Fotos subidas ({fotos.length})</h2>
-          {fotos.length === 0 && <p class="vacio">Todavía no hay fotos en este evento.</p>}
+          <h2 id="titulo-fotos">Fotos subidas ({fotos.length})</h2>
+          <p class="vacio" id="mensaje-vacio" style={fotos.length > 0 ? "display:none;" : ""}>
+            Todavía no hay fotos en este evento.
+          </p>
           {fotos.length > 0 && (
-            <div class="grid">
+            <div class="grid" id="grid-fotos">
               {fotos.map((f) => (
-                <img src={f.thumb_url ?? ""} alt={f.nombre_archivo ?? ""} loading="lazy" />
+                <div class="foto-item" data-photo-id={f.id}>
+                  <img src={f.thumb_url ?? ""} alt={f.nombre_archivo ?? ""} loading="lazy" />
+                  <button class="btn-borrar" data-id={f.id} title="Borrar foto" type="button">✕</button>
+                </div>
               ))}
             </div>
           )}
@@ -159,6 +173,43 @@ if (evento) {
       } catch {
         estado.className = "estado-subida error";
         estado.textContent = "Ocurrió un problema de conexión.";
+      }
+    });
+
+    // ---------- Borrar una foto ----------
+    document.getElementById("grid-fotos")?.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".btn-borrar");
+      if (!btn) return;
+
+      const photoId = btn.getAttribute("data-id");
+      const confirmado = confirm("¿Borrar esta foto? No se puede deshacer.");
+      if (!confirmado) return;
+
+      const item = btn.closest(".foto-item");
+      item.classList.add("borrando");
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/admin/fotos/${photoId}`, { method: "DELETE" });
+        if (!res.ok) {
+          item.classList.remove("borrando");
+          btn.disabled = false;
+          alert("No se pudo borrar la foto. Intenta de nuevo.");
+          return;
+        }
+
+        item.remove();
+
+        const grid = document.getElementById("grid-fotos");
+        const restantes = grid ? grid.querySelectorAll(".foto-item").length : 0;
+        document.getElementById("titulo-fotos").textContent = `Fotos subidas (${restantes})`;
+        if (restantes === 0) {
+          document.getElementById("mensaje-vacio").style.display = "block";
+        }
+      } catch {
+        item.classList.remove("borrando");
+        btn.disabled = false;
+        alert("Ocurrió un problema de conexión al borrar.");
       }
     });
   </script>

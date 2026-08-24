@@ -9,7 +9,7 @@ const { eventId } = Astro.params;
   <title>Tu galería | HR Estudio</title>
   <meta name="robots" content="noindex" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style is:global>
     :root {
       --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
@@ -17,39 +17,236 @@ const { eventId } = Astro.params;
       --borde: rgba(197, 160, 89, 0.25);
     }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: var(--negro); color: var(--crema); font-family: 'Inter', sans-serif; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 48px 24px 80px; }
-    h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 30px; margin: 0 0 4px; }
-    p.contador { color: var(--humo); font-size: 14px; margin: 0 0 32px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-    .foto { background: var(--carbon); border: 1px solid var(--borde); border-radius: 4px; overflow: hidden; }
-    .foto img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--carbon-2); }
-    .foto button {
-      width: 100%; padding: 10px 0; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase;
-      background: var(--oro); color: var(--negro); border: none; cursor: pointer;
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--negro); color: var(--crema);
+      font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased;
     }
-    .foto button:hover:not(:disabled) { background: var(--oro-claro); }
-    .foto button:disabled { opacity: 0.6; }
-    .estado { text-align: center; color: var(--humo); padding: 80px 0; font-size: 15px; }
+
+    /* -------- Hero / encabezado -------- */
+    .hero {
+      position: relative;
+      padding: 72px 24px 48px;
+      text-align: center;
+      background:
+        radial-gradient(ellipse 900px 400px at 50% -10%, rgba(197,160,89,0.14), transparent 70%),
+        var(--negro);
+      border-bottom: 1px solid var(--borde);
+    }
+    .marca {
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--humo);
+      margin: 0 0 20px;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif; font-weight: 600; font-style: italic;
+      font-size: clamp(30px, 5vw, 48px); margin: 0 0 12px; color: var(--crema);
+    }
+    .divisor {
+      width: 56px; height: 1px; background: var(--oro); margin: 20px auto; opacity: 0.7;
+    }
+    .hero p.meta { color: var(--humo); font-size: 14px; margin: 0; letter-spacing: 0.3px; }
+    .hero p.meta strong { color: var(--oro-claro); font-weight: 500; }
+
+    /* -------- Toolbar -------- */
+    .toolbar {
+      max-width: 1280px; margin: 0 auto; padding: 28px 24px 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-zip {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 13px 26px; font-size: 13px; letter-spacing: 0.8px; text-transform: uppercase;
+      font-weight: 500; background: var(--oro); color: var(--negro);
+      border: none; border-radius: 3px; cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn-zip:hover { background: var(--oro-claro); transform: translateY(-1px); }
+    .btn-zip svg { width: 16px; height: 16px; }
+
+    /* -------- Grilla -------- */
+    .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px 100px; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px;
+    }
+    .foto {
+      position: relative; border-radius: 6px; overflow: hidden; cursor: pointer;
+      background: var(--carbon); border: 1px solid var(--borde);
+      opacity: 0; transform: translateY(14px);
+      animation: aparecer 0.5s ease forwards;
+    }
+    @keyframes aparecer { to { opacity: 1; transform: translateY(0); } }
+    .foto img {
+      width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block;
+      background: var(--carbon-2); transition: transform 0.5s ease;
+    }
+    .foto:hover img { transform: scale(1.06); }
+    .foto .overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent 55%, rgba(15,13,11,0.85) 100%);
+      opacity: 0; transition: opacity 0.25s ease;
+      display: flex; align-items: flex-end; justify-content: flex-end; padding: 12px;
+    }
+    .foto:hover .overlay { opacity: 1; }
+    .btn-descarga-mini {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(22,20,18,0.75); border: 1px solid rgba(197,160,89,0.4);
+      display: flex; align-items: center; justify-content: center; color: var(--crema);
+      transition: background 0.2s, border-color 0.2s; flex-shrink: 0;
+    }
+    .btn-descarga-mini:hover { background: var(--oro); border-color: var(--oro); color: var(--negro); }
+    .btn-descarga-mini svg { width: 16px; height: 16px; }
+    .btn-descarga-mini.cargando svg { animation: girar 0.8s linear infinite; }
+    @keyframes girar { to { transform: rotate(360deg); } }
+
+    /* -------- Estados: cargando / vacío / error -------- */
+    .estado-carga { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+    .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+    .skeleton {
+      aspect-ratio: 1/1; border-radius: 6px; background: var(--carbon);
+      position: relative; overflow: hidden; border: 1px solid var(--borde);
+    }
+    .skeleton::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(100deg, transparent 30%, rgba(197,160,89,0.08) 50%, transparent 70%);
+      animation: brillo 1.6s ease-in-out infinite;
+    }
+    @keyframes brillo { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+    .estado-vacio {
+      text-align: center; padding: 90px 24px; color: var(--humo);
+    }
+    .estado-vacio svg { width: 40px; height: 40px; opacity: 0.5; margin-bottom: 16px; }
+    .estado-vacio p { font-size: 15px; margin: 0; }
+
+    /* -------- Lightbox -------- */
+    .lightbox {
+      position: fixed; inset: 0; background: rgba(10,9,8,0.96); z-index: 1000;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+      backdrop-filter: blur(4px);
+    }
+    .lightbox.abierto { display: flex; animation: fundir 0.2s ease; }
+    @keyframes fundir { from { opacity: 0; } to { opacity: 1; } }
+    .lightbox img {
+      max-width: min(90vw, 1100px); max-height: 82vh; object-fit: contain;
+      border-radius: 4px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .lightbox-barra {
+      position: absolute; top: 20px; right: 20px; left: 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .lightbox-contador { color: var(--humo); font-size: 13px; letter-spacing: 0.5px; }
+    .lightbox-acciones { display: flex; gap: 10px; }
+    .lb-btn {
+      width: 40px; height: 40px; border-radius: 50%; background: rgba(38,34,30,0.8);
+      border: 1px solid var(--borde); color: var(--crema); display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .lb-btn:hover { background: var(--oro); border-color: var(--oro); color: var(--negro); }
+    .lb-btn svg { width: 18px; height: 18px; }
+    .lb-nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 48px; height: 48px; border-radius: 50%; background: rgba(38,34,30,0.6);
+      border: 1px solid var(--borde); color: var(--crema); display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .lb-nav:hover { background: rgba(197,160,89,0.9); color: var(--negro); }
+    .lb-nav.prev { left: 20px; }
+    .lb-nav.next { right: 20px; }
+    .lb-nav svg { width: 22px; height: 22px; }
+    @media (max-width: 640px) {
+      .lb-nav { width: 38px; height: 38px; }
+      .lb-nav.prev { left: 8px; }
+      .lb-nav.next { right: 8px; }
+    }
+
+    footer.pie {
+      text-align: center; padding: 32px 24px 48px; color: var(--humo); font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    footer.pie a { color: var(--oro-claro); text-decoration: none; }
+    footer.pie a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <main class="container">
-    <h1>Tus fotos</h1>
-    <p class="contador" id="contador">Cargando...</p>
+  <header class="hero">
+    <p class="marca">HR Estudio</p>
+    <h1 id="titulo-evento">Tu galería</h1>
+    <div class="divisor"></div>
+    <p class="meta" id="meta-evento">Cargando tus fotos…</p>
+  </header>
+
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <a class="btn-zip" id="btn-descargar-todo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar todas (.zip)
+    </a>
+  </div>
+
+  <div class="estado-carga" id="estado-carga">
+    <div class="skeleton-grid">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </div>
+  </div>
+
+  <main class="container" id="contenedor-grid" style="display:none;">
     <div class="grid" id="grid"></div>
   </main>
 
+  <div class="estado-vacio" id="estado-vacio" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    <p>Todavía no hay fotos en esta galería.</p>
+  </div>
+
+  <div class="estado-vacio" id="estado-error" style="display:none;">
+    <p id="mensaje-error">Ocurrió un problema al cargar tu galería.</p>
+  </div>
+
+  <footer class="pie">
+    Fotografía por <a href="/" target="_blank" rel="noopener">HR Estudio</a> · Paraíso, Tabasco
+  </footer>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <div class="lightbox-barra">
+      <span class="lightbox-contador" id="lb-contador"></span>
+      <div class="lightbox-acciones">
+        <button class="lb-btn" id="lb-descargar" title="Descargar esta foto" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="lb-btn" id="lb-cerrar" title="Cerrar" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <button class="lb-nav prev" id="lb-prev" title="Anterior" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <img id="lb-imagen" src="" alt="" />
+    <button class="lb-nav next" id="lb-next" title="Siguiente" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+
   <script define:vars={{ eventId }}>
     const token = sessionStorage.getItem(`galeria_token_${eventId}`);
-    const grid = document.getElementById("grid");
-    const contador = document.getElementById("contador");
+    if (!token) window.location.href = "/galeria";
 
-    if (!token) {
-      window.location.href = "/galeria";
-    } else {
-      cargarFotos();
-    }
+    const estadoCarga = document.getElementById("estado-carga");
+    const contenedorGrid = document.getElementById("contenedor-grid");
+    const grid = document.getElementById("grid");
+    const estadoVacio = document.getElementById("estado-vacio");
+    const estadoError = document.getElementById("estado-error");
+    const mensajeError = document.getElementById("mensaje-error");
+    const toolbar = document.getElementById("toolbar");
+    const metaEvento = document.getElementById("meta-evento");
+    const tituloEvento = document.getElementById("titulo-evento");
+
+    let fotos = [];
+    let indiceActual = 0;
+
+    if (token) cargarFotos();
 
     async function cargarFotos() {
       try {
@@ -57,40 +254,64 @@ const { eventId } = Astro.params;
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
+        estadoCarga.style.display = "none";
 
         if (!res.ok) {
-          contador.textContent = data.error ?? "No se pudo cargar la galería";
+          mensajeError.textContent = data.error ?? "No se pudo cargar la galería";
+          estadoError.style.display = "block";
           return;
         }
 
-        const fotos = data.fotos ?? [];
-        contador.textContent = `${fotos.length} foto${fotos.length === 1 ? "" : "s"}`;
+        fotos = data.fotos ?? [];
+
+        if (fotos.length === 0) {
+          estadoVacio.style.display = "block";
+          metaEvento.textContent = "Sin fotos todavía";
+          return;
+        }
+
+        tituloEvento.textContent = "Tus fotos";
+        metaEvento.innerHTML = `<strong>${fotos.length}</strong> foto${fotos.length === 1 ? "" : "s"} lista${fotos.length === 1 ? "" : "s"} para ti`;
+
+        toolbar.style.display = "flex";
+        document.getElementById("btn-descargar-todo").href =
+          `/api/gallery/${eventId}/descargar-zip?token=${encodeURIComponent(token)}`;
 
         grid.innerHTML = fotos
           .map(
-            (f) => `
-          <div class="foto">
+            (f, i) => `
+          <div class="foto" data-index="${i}" style="animation-delay:${Math.min(i * 0.04, 0.6)}s">
             <img src="${f.thumbnail_url ?? ""}" alt="${f.nombre ?? ""}" loading="lazy" />
-            <button data-id="${f.id}">Descargar</button>
+            <div class="overlay">
+              <button class="btn-descarga-mini" data-id="${f.id}" title="Descargar esta foto" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            </div>
           </div>
         `
           )
           .join("");
 
-        grid.querySelectorAll("button[data-id]").forEach((btn) => {
-          btn.addEventListener("click", () => descargarFoto(btn));
+        contenedorGrid.style.display = "block";
+
+        grid.querySelectorAll(".foto").forEach((el) => {
+          el.addEventListener("click", () => abrirLightbox(Number(el.dataset.index)));
+        });
+        grid.querySelectorAll(".btn-descarga-mini").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            descargarFoto(btn.dataset.id, btn);
+          });
         });
       } catch {
-        contador.textContent = "Ocurrió un problema al cargar tus fotos.";
+        estadoCarga.style.display = "none";
+        mensajeError.textContent = "Ocurrió un problema al cargar tus fotos.";
+        estadoError.style.display = "block";
       }
     }
 
-    async function descargarFoto(btn) {
-      const photoId = btn.getAttribute("data-id");
-      const textoOriginal = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = "Descargando...";
-
+    async function descargarFoto(photoId, btnEl) {
+      if (btnEl) btnEl.classList.add("cargando");
       try {
         const res = await fetch(`/api/gallery/${eventId}/download?photoId=${photoId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -103,10 +324,59 @@ const { eventId } = Astro.params;
           a.click();
         }
       } finally {
-        btn.disabled = false;
-        btn.textContent = textoOriginal;
+        if (btnEl) btnEl.classList.remove("cargando");
       }
     }
+
+    // ---------- Lightbox ----------
+    const lightbox = document.getElementById("lightbox");
+    const lbImagen = document.getElementById("lb-imagen");
+    const lbContador = document.getElementById("lb-contador");
+    const lbDescargar = document.getElementById("lb-descargar");
+
+    function abrirLightbox(indice) {
+      indiceActual = indice;
+      mostrarEnLightbox();
+      lightbox.classList.add("abierto");
+      document.body.style.overflow = "hidden";
+    }
+
+    function cerrarLightbox() {
+      lightbox.classList.remove("abierto");
+      document.body.style.overflow = "";
+    }
+
+    function mostrarEnLightbox() {
+      const foto = fotos[indiceActual];
+      lbImagen.src = foto.thumbnail_url ?? "";
+      lbImagen.alt = foto.nombre ?? "";
+      lbContador.textContent = `${indiceActual + 1} / ${fotos.length}`;
+    }
+
+    function siguiente() {
+      indiceActual = (indiceActual + 1) % fotos.length;
+      mostrarEnLightbox();
+    }
+    function anterior() {
+      indiceActual = (indiceActual - 1 + fotos.length) % fotos.length;
+      mostrarEnLightbox();
+    }
+
+    document.getElementById("lb-cerrar").addEventListener("click", cerrarLightbox);
+    document.getElementById("lb-next").addEventListener("click", siguiente);
+    document.getElementById("lb-prev").addEventListener("click", anterior);
+    document.getElementById("lb-descargar").addEventListener("click", () => {
+      descargarFoto(fotos[indiceActual].id, lbDescargar);
+    });
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) cerrarLightbox();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (!lightbox.classList.contains("abierto")) return;
+      if (e.key === "Escape") cerrarLightbox();
+      if (e.key === "ArrowRight") siguiente();
+      if (e.key === "ArrowLeft") anterior();
+    });
   </script>
 </body>
 </html>

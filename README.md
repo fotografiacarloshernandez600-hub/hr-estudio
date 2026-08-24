@@ -102,6 +102,25 @@ ninguna variable de Cloudflare R2.
 5. Quien reciba el código entra a `/galeria`, lo escribe, y ve/descarga
    todas las fotos del evento.
 
+### Borrar una foto subida por error
+
+Desde `/admin/eventos/[id]`, cada foto de la grilla tiene una ✕ en la
+esquina — te pide confirmación y la borra (original, thumbnail y el
+registro en la base) de una vez.
+
+### Descargar todas las fotos en un ZIP
+
+En `/galeria/[eventId]`, además del botón de descarga individual por foto,
+hay un botón "Descargar todas (.zip)" que arma el ZIP en el momento y lo
+manda directo.
+
+**Límite real, no solo trámite:** armar el ZIP tiene un tope de 60 segundos
+(el máximo que permite una función de Vercel en el plan gratis). Para una
+boda de unas cuantas decenas o cientos de fotos, no hay problema. Para un
+evento de miles de fotos en alta resolución, es posible que el ZIP no
+alcance a terminar en ese tiempo y la descarga falle — en ese caso, la
+descarga foto por foto sigue funcionando sin límite.
+
 ### Pendientes / decisiones futuras
 
 - [ ] **Límite de almacenamiento gratis**: el plan gratis de Supabase
