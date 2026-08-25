@@ -35,6 +35,9 @@ if (evento) {
   <meta name="robots" content="noindex" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  {evento?.tipo === "carrera" && (
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" is:inline></script>
+  )}
   <style is:global>
     :root {
       --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
@@ -107,11 +110,24 @@ if (evento) {
 
         <section class="panel">
           <h2>Subir fotos</h2>
+          {evento.tipo === "carrera" && (
+            <p class="link-galeria" style="margin-bottom:14px;">
+              Este evento tiene búsqueda por selfie activada: cada foto que subas se analiza
+              en tu navegador (gratis, sin servidor externo) para poder encontrar después en
+              qué fotos aparece cada atleta.
+            </p>
+          )}
           <label class="dropzone" for="input-fotos">
             Haz clic para elegir fotos (puedes seleccionar varias a la vez, sin límite de peso por foto)
           </label>
           <input type="file" id="input-fotos" multiple accept="image/*" />
           <p class="estado-subida" id="estado-subida"></p>
+          {evento.tipo === "carrera" && (
+            <button class="btn-borrar-todo" id="btn-reindexar" type="button"
+              style="margin-top:14px; background:none; border:1px solid var(--borde); color:var(--humo); padding:10px 16px; border-radius:4px; cursor:pointer; font-size:13px;">
+              Indexar fotos pendientes
+            </button>
+          )}
         </section>
 
         <section class="panel">
@@ -134,17 +150,19 @@ if (evento) {
     )}
   </main>
 
-  <script define:vars={{ eventId: id }}>
-    // Este script solo pasa el eventId al módulo de abajo. Va aparte
-    // porque un script con define:vars no puede usar "import" (Astro lo
-    // trata como script en línea, sin empaquetar).
+  <script define:vars={{ eventId: id, esCarrera: evento?.tipo === "carrera" }}>
+    // Este script solo pasa datos al módulo de abajo. Va aparte porque un
+    // script con define:vars no puede usar "import" (Astro lo trata como
+    // script en línea, sin empaquetar).
     window.__EVENT_ID__ = eventId;
+    window.__ES_CARRERA__ = esCarrera;
   </script>
 
   <script>
     import { createClient } from "@supabase/supabase-js";
 
     const eventId = window.__EVENT_ID__;
+    const esCarrera = window.__ES_CARRERA__;
     // Llave pública (anon), segura de exponer: la autorización real de
     // cada subida la da el token de un solo uso que pedimos a nuestro
     // propio backend en cada foto, no esta llave.
@@ -152,6 +170,42 @@ if (evento) {
       import.meta.env.PUBLIC_SUPABASE_URL,
       import.meta.env.PUBLIC_SUPABASE_ANON_KEY
     );
+
+    // ---------- face-api.js: modelos hospedados en /models, gratis ----------
+    let modelosCargados = false;
+    async function asegurarModelos() {
+      if (modelosCargados) return;
+      await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+      await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
+      await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+      modelosCargados = true;
+    }
+
+    async function extraerEmbeddingsDeArchivo(archivo) {
+      const img = await faceapi.bufferToImage(archivo);
+      const detecciones = await faceapi
+        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+      return detecciones.map((d) => Array.from(d.descriptor));
+    }
+
+    async function extraerEmbeddingsDeUrl(url) {
+      const img = await faceapi.fetchImage(url);
+      const detecciones = await faceapi
+        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+      return detecciones.map((d) => Array.from(d.descriptor));
+    }
+
+    async function guardarEmbeddings(photoId, embeddings) {
+      await fetch("/api/admin/embeddings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo_id: photoId, embeddings }),
+      });
+    }
 
     const btnCopiar = document.getElementById("btn-copiar");
     btnCopiar?.addEventListener("click", () => {
@@ -207,6 +261,20 @@ if (evento) {
           const datosConfirmar = await resConfirmar.json();
           if (!resConfirmar.ok) throw new Error(datosConfirmar.error || "No se pudo procesar la foto");
 
+          // 4. Si el evento tiene búsqueda por selfie activada, analizamos
+          //    el rostro AQUÍ MISMO, con el archivo que ya tenemos en
+          //    memoria (no hace falta volver a descargarlo de Storage).
+          if (esCarrera) {
+            estado.textContent = `Analizando rostros en "${archivo.name}"...`;
+            try {
+              await asegurarModelos();
+              const embeddings = await extraerEmbeddingsDeArchivo(archivo);
+              await guardarEmbeddings(datosConfirmar.foto.id, embeddings);
+            } catch (e) {
+              console.error("No se pudo indexar el rostro de", archivo.name, e);
+            }
+          }
+
           subidas++;
         } catch (e) {
           console.error("Error subiendo", archivo.name, e);
@@ -223,6 +291,48 @@ if (evento) {
       } else {
         estado.className = "estado-subida error";
         estado.textContent = "No se pudo subir ninguna foto. Revisa tu conexión e intenta de nuevo.";
+      }
+    });
+
+    // ---------- Reindexar fotos existentes (botón manual) ----------
+    const btnReindexar = document.getElementById("btn-reindexar");
+
+    btnReindexar?.addEventListener("click", async () => {
+      btnReindexar.disabled = true;
+      const textoOriginal = btnReindexar.textContent;
+
+      try {
+        await asegurarModelos();
+
+        const res = await fetch(`/api/admin/fotos?eventId=${eventId}&soloSinIndexar=true`);
+        const data = await res.json();
+        const pendientes = data.fotos ?? [];
+
+        if (pendientes.length === 0) {
+          btnReindexar.textContent = "No hay fotos pendientes";
+          setTimeout(() => (btnReindexar.textContent = textoOriginal), 2000);
+          return;
+        }
+
+        for (let i = 0; i < pendientes.length; i++) {
+          btnReindexar.textContent = `Indexando ${i + 1}/${pendientes.length}...`;
+          const foto = pendientes[i];
+          if (!foto.thumbnail_url) continue;
+          try {
+            const embeddings = await extraerEmbeddingsDeUrl(foto.thumbnail_url);
+            await guardarEmbeddings(foto.id, embeddings);
+          } catch (e) {
+            console.error("No se pudo indexar", foto.id, e);
+          }
+        }
+
+        btnReindexar.textContent = "Listo";
+        setTimeout(() => (btnReindexar.textContent = textoOriginal), 2000);
+      } catch {
+        btnReindexar.textContent = "Ocurrió un problema";
+        setTimeout(() => (btnReindexar.textContent = textoOriginal), 2000);
+      } finally {
+        btnReindexar.disabled = false;
       }
     });
 

@@ -149,6 +149,56 @@ automáticamente a una descarga normal. El botón de ZIP se dejó como opción
 secundaria, más chica, para quien prefiera todo de una vez y sepa
 descomprimir.
 
+## 🏃 Búsqueda por selfie (eventos tipo "carrera") — gratis
+
+Cuando creas un evento con tipo "Carrera atlética", la galería de ese
+evento cambia de comportamiento: en vez de mostrar todas las fotos directo,
+primero pide una selfie y solo muestra las fotos donde esa persona aparece.
+Corre 100% en el navegador (no es un servicio de pago ni un modelo que tú
+entrenas — usa [face-api.js](https://github.com/justadudewhohacks/face-api.js),
+un modelo ya entrenado por otros que convierte cualquier rostro en una
+"huella" de 128 números, y solo comparamos huellas).
+
+### 1. Si ya tenías el proyecto de Supabase de antes
+
+Corre en el SQL Editor el contenido de
+`supabase/migracion-reconocimiento-facial.sql` (no vuelvas a correr
+`schema.sql` completo, te va a marcar error de tablas duplicadas). Si es un
+proyecto nuevo, `schema.sql` ya incluye todo, no hace falta el archivo de
+migración aparte.
+
+### 2. Crear un evento tipo carrera
+
+Desde `/admin/eventos`, al crear el evento elige "Carrera atlética" en
+"Tipo".
+
+### 3. Subir las fotos
+
+Igual que siempre, desde `/admin/eventos/[id]`. La diferencia: por cada
+foto que subas, tu navegador analiza los rostros ahí mismo (verás
+"Analizando rostros en...") y guarda sus huellas. Si se corta a la mitad, o
+tienes fotos viejas subidas antes de activar esto, usa el botón "Indexar
+fotos pendientes" para ponerlas al día.
+
+### 4. Cómo lo usa el atleta
+
+Entra a `/galeria` con el código igual que siempre. Como el evento es tipo
+carrera, en vez de la grilla ve un cuadro para subir su selfie. Su
+navegador calcula la huella de esa selfie (nada se sube a ningún servidor
+de reconocimiento facial) y se la manda a tu backend, que compara contra
+todas las huellas del evento. Las fotos que coincidan se muestran con la
+misma galería bonita de siempre — lightbox, "Guardar todas en tu galería",
+ZIP — pero el ZIP y el "guardar todas" en este caso solo incluyen SUS
+fotos, nunca las de otros atletas.
+
+### Ajustar la precisión
+
+En `supabase/schema.sql` (o directo en el SQL Editor), la función
+`buscar_fotos_por_rostro` tiene un parámetro `p_umbral` (por defecto 0.6,
+el valor típico recomendado para face-api.js). Si te traen fotos de más
+que no son de esa persona, baja el número (más estricto). Si le faltan
+fotos donde sí sale, súbelo un poco (más flexible).
+
 ### Pendientes / decisiones futuras
 
 - [ ] **Límite de almacenamiento gratis**: el plan gratis de Supabase

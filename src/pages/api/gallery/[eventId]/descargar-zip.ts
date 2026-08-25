@@ -34,10 +34,17 @@ export const GET: APIRoute = async ({ params, url }) => {
     .eq("id", eventId)
     .single();
 
-  const { data: photos, error } = await supabaseAdmin
-    .from("photos")
-    .select("storage_key, nombre_archivo")
-    .eq("event_id", eventId);
+  // En eventos tipo 'carrera', solo se debe poder descargar el ZIP de LAS
+  // FOTOS DONDE ESA PERSONA APARECIÓ (las que ya vio en su búsqueda por
+  // selfie) — nunca las de todo el evento, que son de otros atletas.
+  const idsFiltro = url.searchParams.get("ids");
+
+  let query = supabaseAdmin.from("photos").select("storage_key, nombre_archivo").eq("event_id", eventId);
+  if (idsFiltro) {
+    query = query.in("id", idsFiltro.split(",").filter(Boolean));
+  }
+
+  const { data: photos, error } = await query;
 
   if (error || !photos || photos.length === 0) {
     return new Response("No hay fotos para descargar", { status: 404 });

@@ -1,6 +1,16 @@
 ---
 export const prerender = false;
+import { supabaseAdmin } from "../../lib/supabase";
+
 const { eventId } = Astro.params;
+
+const { data: evento } = await supabaseAdmin
+  .from("events")
+  .select("tipo")
+  .eq("id", eventId)
+  .single();
+
+const esCarrera = evento?.tipo === "carrera";
 ---
 <html lang="es">
 <head>
@@ -10,6 +20,9 @@ const { eventId } = Astro.params;
   <meta name="robots" content="noindex" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  {esCarrera && (
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" is:inline></script>
+  )}
   <style is:global>
     :root {
       --negro: #161412; --carbon: #1F1C19; --carbon-2: #26221E;
@@ -46,6 +59,25 @@ const { eventId } = Astro.params;
     }
     .hero p.meta { color: var(--humo); font-size: 14px; margin: 0; letter-spacing: 0.3px; }
     .hero p.meta strong { color: var(--oro-claro); font-weight: 500; }
+
+    /* -------- Panel de búsqueda por selfie (eventos tipo carrera) -------- */
+    .panel-selfie { max-width: 460px; margin: 40px auto 0; padding: 0 24px; }
+    .caja-selfie {
+      background: var(--carbon); border: 1px solid var(--borde); border-radius: 8px;
+      padding: 40px 32px; text-align: center;
+    }
+    .caja-selfie h2 {
+      font-family: 'Playfair Display', serif; font-style: italic; font-weight: 600;
+      font-size: 22px; margin: 0 0 10px;
+    }
+    .caja-selfie p.desc { color: var(--humo); font-size: 14px; line-height: 1.6; margin: 0 0 26px; }
+    .dropzone-selfie {
+      display: block; border: 1px dashed var(--borde); border-radius: 6px; padding: 36px 20px;
+      color: var(--humo); font-size: 14px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+    }
+    .dropzone-selfie:hover { border-color: var(--oro); color: var(--crema); }
+    input#input-selfie { display: none; }
+    .error-selfie { color: #E2857A; font-size: 13px; margin-top: 14px; }
 
     /* -------- Toolbar -------- */
     .toolbar {
@@ -211,10 +243,24 @@ const { eventId } = Astro.params;
 <body>
   <header class="hero">
     <p class="marca">HR Estudio</p>
-    <h1 id="titulo-evento">Tu galería</h1>
+    <h1 id="titulo-evento">{esCarrera ? "Busca tus fotos" : "Tu galería"}</h1>
     <div class="divisor"></div>
-    <p class="meta" id="meta-evento">Cargando tus fotos…</p>
+    <p class="meta" id="meta-evento">
+      {esCarrera ? "Sube una selfie y te mostramos las fotos donde apareces" : "Cargando tus fotos…"}
+    </p>
   </header>
+
+  {esCarrera && (
+    <div class="panel-selfie" id="panel-selfie">
+      <div class="caja-selfie">
+        <h2>Tu selfie</h2>
+        <p class="desc">Usa una foto donde se te vea bien de frente, con buena luz y sin lentes oscuros.</p>
+        <label class="dropzone-selfie" for="input-selfie">Toca para tomar o elegir tu selfie</label>
+        <input type="file" id="input-selfie" accept="image/*" capture="user" />
+        <p class="error-selfie" id="error-selfie" style="display:none;"></p>
+      </div>
+    </div>
+  )}
 
   <div class="toolbar" id="toolbar" style="display:none;">
     <button class="btn-guardar" id="btn-guardar-galeria" type="button">
@@ -224,7 +270,7 @@ const { eventId } = Astro.params;
     <a class="btn-zip" id="btn-descargar-todo">Prefiero descargar todo en un .zip</a>
   </div>
 
-  <div class="estado-carga" id="estado-carga">
+  <div class="estado-carga" id="estado-carga" style={esCarrera ? "display:none;" : ""}>
     <div class="skeleton-grid">
       <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
       <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
@@ -283,7 +329,7 @@ const { eventId } = Astro.params;
     </button>
   </div>
 
-  <script define:vars={{ eventId }}>
+  <script define:vars={{ eventId, esCarrera }}>
     const token = sessionStorage.getItem(`galeria_token_${eventId}`);
     if (!token) window.location.href = "/galeria";
 
@@ -300,7 +346,60 @@ const { eventId } = Astro.params;
     let fotos = [];
     let indiceActual = 0;
 
-    if (token) cargarFotos();
+    if (token) {
+      if (esCarrera) {
+        // El flujo de carrera espera la selfie antes de mostrar nada
+        // (ver el bloque "Búsqueda por selfie" más abajo).
+      } else {
+        cargarFotos();
+      }
+    }
+
+    function mostrarFotos() {
+      if (fotos.length === 0) {
+        estadoVacio.style.display = "block";
+        estadoVacio.querySelector("p").textContent = esCarrera
+          ? "No encontramos fotos tuyas todavía. Si acabas de correr, dale un rato a que subamos las fotos."
+          : "Todavía no hay fotos en esta galería.";
+        metaEvento.textContent = esCarrera ? "Sin coincidencias" : "Sin fotos todavía";
+        return;
+      }
+
+      tituloEvento.textContent = "Tus fotos";
+      metaEvento.innerHTML = `<strong>${fotos.length}</strong> foto${fotos.length === 1 ? "" : "s"} lista${fotos.length === 1 ? "" : "s"} para ti`;
+
+      toolbar.style.display = "flex";
+      const filtroIds = esCarrera ? `&ids=${fotos.map((f) => f.id).join(",")}` : "";
+      document.getElementById("btn-descargar-todo").href =
+        `/api/gallery/${eventId}/descargar-zip?token=${encodeURIComponent(token)}${filtroIds}`;
+
+      grid.innerHTML = fotos
+        .map(
+          (f, i) => `
+        <div class="foto" data-index="${i}" style="animation-delay:${Math.min(i * 0.04, 0.6)}s">
+          <img src="${f.thumbnail_url ?? ""}" alt="${f.nombre ?? ""}" loading="lazy" />
+          <div class="overlay">
+            <button class="btn-descarga-mini" data-id="${f.id}" title="Descargar esta foto" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+          </div>
+        </div>
+      `
+        )
+        .join("");
+
+      contenedorGrid.style.display = "block";
+
+      grid.querySelectorAll(".foto").forEach((el) => {
+        el.addEventListener("click", () => abrirLightbox(Number(el.dataset.index)));
+      });
+      grid.querySelectorAll(".btn-descarga-mini").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          descargarFoto(btn.dataset.id, btn);
+        });
+      });
+    }
 
     async function cargarFotos() {
       try {
@@ -317,51 +416,78 @@ const { eventId } = Astro.params;
         }
 
         fotos = data.fotos ?? [];
-
-        if (fotos.length === 0) {
-          estadoVacio.style.display = "block";
-          metaEvento.textContent = "Sin fotos todavía";
-          return;
-        }
-
-        tituloEvento.textContent = "Tus fotos";
-        metaEvento.innerHTML = `<strong>${fotos.length}</strong> foto${fotos.length === 1 ? "" : "s"} lista${fotos.length === 1 ? "" : "s"} para ti`;
-
-        toolbar.style.display = "flex";
-        document.getElementById("btn-descargar-todo").href =
-          `/api/gallery/${eventId}/descargar-zip?token=${encodeURIComponent(token)}`;
-
-        grid.innerHTML = fotos
-          .map(
-            (f, i) => `
-          <div class="foto" data-index="${i}" style="animation-delay:${Math.min(i * 0.04, 0.6)}s">
-            <img src="${f.thumbnail_url ?? ""}" alt="${f.nombre ?? ""}" loading="lazy" />
-            <div class="overlay">
-              <button class="btn-descarga-mini" data-id="${f.id}" title="Descargar esta foto" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              </button>
-            </div>
-          </div>
-        `
-          )
-          .join("");
-
-        contenedorGrid.style.display = "block";
-
-        grid.querySelectorAll(".foto").forEach((el) => {
-          el.addEventListener("click", () => abrirLightbox(Number(el.dataset.index)));
-        });
-        grid.querySelectorAll(".btn-descarga-mini").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            descargarFoto(btn.dataset.id, btn);
-          });
-        });
+        mostrarFotos();
       } catch {
         estadoCarga.style.display = "none";
         mensajeError.textContent = "Ocurrió un problema al cargar tus fotos.";
         estadoError.style.display = "block";
       }
+    }
+
+    // ---------- Búsqueda por selfie (solo eventos tipo carrera) ----------
+    if (esCarrera) {
+      const inputSelfie = document.getElementById("input-selfie");
+      const errorSelfie = document.getElementById("error-selfie");
+      const panelSelfie = document.getElementById("panel-selfie");
+      const etiquetaSelfie = document.querySelector('label[for="input-selfie"]');
+
+      let modelosCargados = false;
+      async function asegurarModelos() {
+        if (modelosCargados) return;
+        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+        await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
+        await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+        modelosCargados = true;
+      }
+
+      inputSelfie?.addEventListener("change", async () => {
+        const archivo = inputSelfie.files?.[0];
+        if (!archivo) return;
+
+        errorSelfie.style.display = "none";
+        etiquetaSelfie.textContent = "Analizando tu selfie...";
+
+        try {
+          await asegurarModelos();
+
+          const img = await faceapi.bufferToImage(archivo);
+          const deteccion = await faceapi
+            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+
+          if (!deteccion) {
+            errorSelfie.textContent = "No detectamos un rostro claro. Intenta con otra selfie, con buena luz y de frente.";
+            errorSelfie.style.display = "block";
+            return;
+          }
+
+          etiquetaSelfie.textContent = "Buscando tus fotos...";
+
+          const res = await fetch(`/api/gallery/${eventId}/buscar-rostro`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ embedding: Array.from(deteccion.descriptor) }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            errorSelfie.textContent = data.error ?? "No se pudo procesar la búsqueda";
+            errorSelfie.style.display = "block";
+            return;
+          }
+
+          panelSelfie.style.display = "none";
+          fotos = data.fotos ?? [];
+          mostrarFotos();
+        } catch (e) {
+          console.error(e);
+          errorSelfie.textContent = "Ocurrió un problema al buscar tus fotos.";
+          errorSelfie.style.display = "block";
+        } finally {
+          etiquetaSelfie.textContent = "Toca para tomar o elegir tu selfie";
+        }
+      });
     }
 
     // El navegador puede compartir archivos (típico en celulares) — ahí es
