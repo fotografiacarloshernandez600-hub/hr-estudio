@@ -38,6 +38,20 @@ export async function eliminarArchivo(key: string) {
   if (error) throw error;
 }
 
+// Borra varios archivos de una vez (usado al eliminar un evento completo).
+// Se divide en bloques de 100 para no exceder límites de la API en
+// eventos con muchas fotos.
+export async function eliminarArchivos(keys: string[]) {
+  const validos = keys.filter(Boolean);
+  if (validos.length === 0) return;
+
+  for (let i = 0; i < validos.length; i += 100) {
+    const bloque = validos.slice(i, i + 100);
+    const { error } = await supabaseAdmin.storage.from(BUCKET).remove(bloque);
+    if (error) console.error("No se pudieron borrar algunos archivos del storage:", error);
+  }
+}
+
 // Descarga el contenido de un archivo directo del bucket (usado para armar
 // el ZIP: evitamos generar y volver a pedir una URL firmada por cada foto).
 export async function descargarArchivo(key: string): Promise<Buffer> {

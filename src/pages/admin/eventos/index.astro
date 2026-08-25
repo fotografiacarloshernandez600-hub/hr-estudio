@@ -52,6 +52,12 @@ const { data: eventos, error } = await supabaseAdmin
     .badge.carrera { background: rgba(155,148,138,0.15); color: var(--humo); }
     code { background: var(--carbon-2); padding: 2px 6px; border-radius: 3px; font-size: 13px; }
     .vacio { color: var(--humo); font-size: 14px; padding: 24px 0; text-align: center; }
+    .btn-borrar-evento {
+      background: none; border: 1px solid var(--borde); color: var(--humo);
+      padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    .btn-borrar-evento:hover { color: #E2857A; border-color: #E2857A; }
+    .btn-borrar-evento:disabled { opacity: 0.5; cursor: default; }
   </style>
 </head>
 <body>
@@ -102,16 +108,21 @@ const { data: eventos, error } = await supabaseAdmin
       {eventos && eventos.length > 0 && (
         <table>
           <thead>
-            <tr><th>Nombre</th><th>Tipo</th><th>Fecha</th><th>Código</th><th>Estado</th></tr>
+            <tr><th>Nombre</th><th>Tipo</th><th>Fecha</th><th>Código</th><th>Estado</th><th></th></tr>
           </thead>
-          <tbody>
+          <tbody id="tbody-eventos">
             {eventos.map((ev) => (
-              <tr>
+              <tr data-id={ev.id}>
                 <td><a class="fila" href={`/admin/eventos/${ev.id}`}>{ev.nombre}</a></td>
                 <td><span class={`badge ${ev.tipo}`}>{ev.tipo}</span></td>
                 <td>{ev.fecha ?? "—"}</td>
                 <td><code>{ev.codigo_acceso}</code></td>
                 <td>{ev.activo ? "Activo" : "Inactivo"}</td>
+                <td>
+                  <button class="btn-borrar-evento" data-id={ev.id} data-nombre={ev.nombre} type="button">
+                    Borrar
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -166,6 +177,46 @@ const { data: eventos, error } = await supabaseAdmin
     document.getElementById("btn-logout")?.addEventListener("click", async () => {
       await fetch("/api/admin/logout", { method: "POST" });
       window.location.href = "/admin/login";
+    });
+
+    // ---------- Borrar un evento (con confirmación escribiendo el nombre) ----------
+    document.getElementById("tbody-eventos")?.addEventListener("click", async (e) => {
+      const target = e.target as HTMLElement;
+      const btn = target.closest(".btn-borrar-evento") as HTMLButtonElement | null;
+      if (!btn) return;
+
+      const eventId = btn.dataset.id!;
+      const nombre = btn.dataset.nombre ?? "este evento";
+
+      const escrito = prompt(
+        `Esto borra "${nombre}" Y TODAS SUS FOTOS de forma permanente. No se puede deshacer.\n\nPara confirmar, escribe el nombre exacto del evento:`
+      );
+      if (escrito === null) return; // canceló
+      if (escrito.trim() !== nombre) {
+        alert("El nombre no coincide. No se borró nada.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Borrando...";
+
+      try {
+        const res = await fetch(`/api/admin/events/${eventId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error ?? "No se pudo borrar el evento.");
+          btn.disabled = false;
+          btn.textContent = "Borrar";
+          return;
+        }
+
+        const fila = btn.closest("tr");
+        fila?.remove();
+      } catch {
+        alert("Ocurrió un problema de conexión al borrar.");
+        btn.disabled = false;
+        btn.textContent = "Borrar";
+      }
     });
   </script>
 </body>

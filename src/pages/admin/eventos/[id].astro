@@ -157,6 +157,17 @@ if (evento) {
             </div>
           )}
         </section>
+
+        <section class="panel" style="border-color: rgba(226,133,122,0.35);">
+          <h2 style="color:#E2857A;">Zona de peligro</h2>
+          <p class="link-galeria" style="margin-bottom:14px;">
+            Esto borra el evento y todas sus fotos de forma permanente. No se puede deshacer.
+          </p>
+          <button id="btn-borrar-evento" type="button"
+            style="background:none; border:1px solid #E2857A; color:#E2857A; padding:10px 18px; border-radius:4px; cursor:pointer; font-size:13px;">
+            Borrar este evento
+          </button>
+        </section>
       </>
     )}
   </main>
@@ -399,6 +410,41 @@ if (evento) {
         setTimeout(() => (btnReindexar.textContent = textoOriginal), 2000);
       } finally {
         btnReindexar.disabled = false;
+      }
+    });
+
+    // ---------- Borrar el evento completo ----------
+    const btnBorrarEvento = document.getElementById("btn-borrar-evento");
+    btnBorrarEvento?.addEventListener("click", async () => {
+      const nombreEvento = window.__NOMBRE_EVENTO__;
+
+      const escrito = prompt(
+        `Esto borra "${nombreEvento}" Y TODAS SUS FOTOS de forma permanente. No se puede deshacer.\n\nPara confirmar, escribe el nombre exacto del evento:`
+      );
+      if (escrito === null) return;
+      if (escrito.trim() !== nombreEvento) {
+        alert("El nombre no coincide. No se borró nada.");
+        return;
+      }
+
+      btnBorrarEvento.disabled = true;
+      btnBorrarEvento.textContent = "Borrando...";
+
+      try {
+        const res = await fetch(`/api/admin/events/${eventId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error ?? "No se pudo borrar el evento.");
+          btnBorrarEvento.disabled = false;
+          btnBorrarEvento.textContent = "Borrar este evento";
+          return;
+        }
+
+        window.location.href = "/admin/eventos";
+      } catch {
+        alert("Ocurrió un problema de conexión al borrar.");
+        btnBorrarEvento.disabled = false;
+        btnBorrarEvento.textContent = "Borrar este evento";
       }
     });
 
